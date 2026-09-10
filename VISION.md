@@ -16,6 +16,12 @@ description. Every significant object has a durable identity such as
 changes. Compiler facts connect functions, equations, datasets, tests, figures,
 results, assumptions, decisions, and external artifacts.
 
+Large-program structure is explicit: workspace → project → package → component →
+object. Packages and components expose semantic interfaces; cross-component
+dependencies form an acyclic graph. Separate compilation and agent context use
+these boundaries, so comprehension and rebuild cost depend on the affected
+neighborhood rather than total repository size.
+
 The default human view begins with a one-page scientific account: purpose;
 inputs and outputs; component/data-flow graph; equations and assumptions;
 precision, units, effects, and unsafe regions; validation; uncertainty; runtime;
@@ -25,6 +31,12 @@ The default agent interface is typed and transactional. An agent asks for one
 object and its neighborhood, applies operations such as `replace_body` or
 `add_parameter`, declares preserved behavior, and commits only if validation
 passes. Text patches remain an escape hatch and import format.
+
+For large programs, the compiler constructs bounded context capsules containing
+the requested object, component interface, direct dependency summaries, and
+relevant contracts, tests, and evidence. Omitted code is represented by typed
+interfaces and expanded only by identity. Whole-repository context is never the
+normal operating mode.
 
 ## Language
 

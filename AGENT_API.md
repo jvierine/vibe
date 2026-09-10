@@ -63,6 +63,13 @@ JSON is valuable here only when it reduces ambiguity. Large syntax trees, tensor
 data, traces, checkpoints, and compiler IR are referenced by identity/hash and
 queried in slices; they are never pasted wholesale into an LLM context.
 
+`context(id, budget, purpose)` returns a deterministic context capsule bounded by
+bytes or tokens. It contains the object, component interface, direct graph
+neighbors, and relevant obligations and evidence; deeper implementation remains a
+reference. `expand(id, fields, budget)` is the normal way to cross that boundary.
+Every included object reports its relevance path so an agent can detect irrelevant
+or missing context.
+
 Example transaction:
 
 ```json

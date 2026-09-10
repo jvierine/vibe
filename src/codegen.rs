@@ -289,12 +289,7 @@ fn c_string(s: &str) -> String {
 }
 
 pub fn architecture(checked: &CheckedProgram) -> String {
-    let mut callers: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
-    for (caller, callees) in &checked.calls {
-        for callee in callees {
-            callers.entry(callee).or_default().push(caller);
-        }
-    }
+    let callers = caller_index(checked);
     let mut out = String::from("Vibe program architecture\n\n");
     for f in &checked.program.functions {
         let calls = checked.calls.get(&f.id).cloned().unwrap_or_default();
@@ -313,4 +308,121 @@ pub fn architecture(checked: &CheckedProgram) -> String {
         ));
     }
     out
+}
+
+pub fn object_view(checked: &CheckedProgram, id: &str) -> Result<String, String> {
+    let function = checked
+        .program
+        .functions
+        .iter()
+        .find(|function| function.id == id)
+        .ok_or_else(|| format!("unknown semantic object '{id}'"))?;
+    let callers = caller_index(checked);
+    let callees = checked.calls.get(id).cloned().unwrap_or_default();
+    let parameters = function
+        .params
+        .iter()
+        .map(|param| format!("{}: {}", param.name, display_type(&param.ty)))
+        .collect::<Vec<_>>()
+        .join(", ");
+    Ok(format!(
+        "Semantic object\n\n{id}\n  kind: function\n  source line: {}\n  interface: ({parameters}) -> {}\n  calls: {}\n  called by: {}\n  effects: none\n  status: types and units checked\n",
+        function.line,
+        display_type(&function.result),
+        display_ids(&callees),
+        callers
+            .get(id)
+            .map(|ids| display_refs(ids))
+            .unwrap_or_else(|| "-".into()),
+    ))
+}
+
+pub fn callees(checked: &CheckedProgram, id: &str) -> Result<Vec<String>, String> {
+    require_object(checked, id)?;
+    Ok(checked.calls.get(id).cloned().unwrap_or_default())
+}
+
+pub fn callers(checked: &CheckedProgram, id: &str) -> Result<Vec<String>, String> {
+    require_object(checked, id)?;
+    Ok(caller_index(checked)
+        .get(id)
+        .map(|ids| ids.iter().map(|id| (*id).to_string()).collect())
+        .unwrap_or_default())
+}
+
+pub fn impact(checked: &CheckedProgram, id: &str) -> Result<Vec<String>, String> {
+    require_object(checked, id)?;
+    let callers = caller_index(checked);
+    let mut pending = vec![id.to_string()];
+    let mut affected = Vec::new();
+    while let Some(current) = pending.pop() {
+        if let Some(next) = callers.get(current.as_str()) {
+            for caller in next {
+                if *caller != id && !affected.contains(&caller.to_string()) {
+                    affected.push(caller.to_string());
+                    pending.push(caller.to_string());
+                }
+            }
+        }
+    }
+    affected.sort();
+    Ok(affected)
+}
+
+fn require_object(checked: &CheckedProgram, id: &str) -> Result<(), String> {
+    if checked.functions.contains_key(id) {
+        Ok(())
+    } else {
+        Err(format!("unknown semantic object '{id}'"))
+    }
+}
+
+fn caller_index(checked: &CheckedProgram) -> BTreeMap<&str, Vec<&str>> {
+    let mut callers: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    for (caller, callees) in &checked.calls {
+        for callee in callees {
+            callers.entry(callee).or_default().push(caller);
+        }
+    }
+    callers
+}
+
+fn display_type(ty: &TypeSyntax) -> String {
+    match ty {
+        TypeSyntax::Scalar(scalar, unit) => match unit {
+            Some(unit) => format!("{}[{unit}]", scalar.name()),
+            None => scalar.name().into(),
+        },
+        TypeSyntax::Array {
+            element,
+            rank,
+            unit,
+            mutable,
+        } => format!(
+            "{}Array<{},{}>{}",
+            if *mutable { "mut " } else { "" },
+            element.name(),
+            rank,
+            unit.as_ref()
+                .map(|unit| format!("[{unit}]"))
+                .unwrap_or_default()
+        ),
+        TypeSyntax::None => "none".into(),
+    }
+}
+
+fn display_ids(ids: &[String]) -> String {
+    if ids.is_empty() {
+        "-".into()
+    } else {
+        ids.join(", ")
+    }
+}
+
+fn display_refs(ids: &[&str]) -> String {
+    if ids.is_empty() {
+        "-".into()
+    } else {
+        ids.join(", ")
+    }
 }

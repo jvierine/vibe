@@ -14,6 +14,10 @@ cargo test --manifest-path "$root/Cargo.toml"
 "$compiler" run "$root/examples/array_loop.vibe" -o "$tmp_dir/array" | grep -qx '6 m'
 "$compiler" run "$root/examples/dot_product.vibe" -o "$tmp_dir/dot" | grep -qx '32 1'
 "$compiler" run "$root/examples/hello_world.vibe" -o "$tmp_dir/hello" | grep -qx 'Hello, world!'
+"$compiler" show "$root/examples/kinetic_energy.vibe" @physics.kinetic_energy | grep -q 'interface:'
+"$compiler" callers "$root/examples/kinetic_energy.vibe" @physics.kinetic_energy | grep -qx '@app.main'
+"$compiler" callees "$root/examples/kinetic_energy.vibe" @app.main | grep -qx '@physics.kinetic_energy'
+"$compiler" impact "$root/examples/kinetic_energy.vibe" @physics.kinetic_energy | grep -qx '@app.main'
 
 if "$compiler" check "$root/tests/bad_units.vibe" >"$tmp_dir/out" 2>"$tmp_dir/err"; then
     echo "bad_units.vibe unexpectedly passed" >&2

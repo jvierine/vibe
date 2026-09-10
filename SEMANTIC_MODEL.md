@@ -1,10 +1,11 @@
 # Semantic program object model
 
-The canonical store is one compact SQLite database at `.vibe/project.db`, not one
-file per object. Revisions and edges are append-only logical records; indexes and
-cache rows may be rebuilt. Kind-specific payloads use schema-versioned canonical
-CBOR blobs where normalized columns are not useful. A readable `.vibe` file is a
-deterministic human serialization/import unit, never identity. Each object has:
+Canonical, version-controlled `.vibe` source serializes the semantic graph in a
+small number of human-readable shards. A rebuildable, gitignored SQLite database
+at `.vibe/index.sqlite` indexes that graph; it is not authoritative and never one
+file per object. Derived revisions, edges, facts, and cache rows may be rebuilt.
+Cached payloads use schema-versioned canonical CBOR where normalized columns are
+not useful. Source location is never identity. Each object has:
 
 ```text
 id            durable project-scoped identity (@physics.frequency)
@@ -23,6 +24,11 @@ equation, symbolic expression, algorithm, intent, assumption, contract, test,
 property, benchmark, figure, result, external library, data artifact, decision,
 build, model, parameter, optimizer, training run, checkpoint, agent, prompt, tool,
 capability, policy, trace, incident, and evaluation.
+
+Large-program containment is `workspace → project → package → component → object`.
+Containment and exported-interface edges determine visibility, separate compilation,
+context-capsule boundaries, and ownership. Cross-component dependencies are
+acyclic; cycles are a compile-time architectural error.
 
 Edges are semantic: `calls`, `implements_equation`, `reads`, `writes`,
 `derived_from`, `validated_by`, `assumes`, `uses_unit`, `renders`, `invalidates`,

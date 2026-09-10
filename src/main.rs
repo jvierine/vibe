@@ -34,7 +34,29 @@ fn run() -> Result<(), String> {
             source,
             checked.functions.len()
         ),
-        "graph" | "show" => print!("{}", codegen::architecture(&checked)),
+        "graph" => print!("{}", codegen::architecture(&checked)),
+        "show" => match args.get(2) {
+            Some(id) => print!("{}", codegen::object_view(&checked, id)?),
+            None => print!("{}", codegen::architecture(&checked)),
+        },
+        "callers" | "callees" | "impact" => {
+            let id = args
+                .get(2)
+                .ok_or_else(|| format!("{command} requires a semantic identity"))?;
+            let ids = match command {
+                "callers" => codegen::callers(&checked, id)?,
+                "callees" => codegen::callees(&checked, id)?,
+                "impact" => codegen::impact(&checked, id)?,
+                _ => unreachable!(),
+            };
+            if ids.is_empty() {
+                println!("-");
+            } else {
+                for id in ids {
+                    println!("{id}");
+                }
+            }
+        }
         "export-json" => print!("{}", codegen::semantic_json(&checked)),
         "emit-c" => print!("{}", codegen::emit_c(&checked)?),
         "build" | "run" => {
@@ -101,6 +123,6 @@ fn default_output(source: &str) -> PathBuf {
 
 fn help() {
     println!(
-        "vibec 0.1.0-bootstrap\n\nUsage:\n  vibec check FILE\n  vibec build FILE [-o OUTPUT]\n  vibec run FILE [-o OUTPUT]\n  vibec graph FILE              # human-readable architecture\n  vibec show FILE               # human-readable semantic view\n  vibec export-json FILE        # optional machine interchange on stdout\n  vibec emit-c FILE\n"
+        "vibec 0.1.0-bootstrap\n\nUsage:\n  vibec check FILE\n  vibec build FILE [-o OUTPUT]\n  vibec run FILE [-o OUTPUT]\n  vibec graph FILE              # human-readable architecture\n  vibec show FILE [@id]         # bounded semantic view\n  vibec callers FILE @id\n  vibec callees FILE @id\n  vibec impact FILE @id         # transitive affected callers\n  vibec export-json FILE        # optional machine interchange on stdout\n  vibec emit-c FILE\n"
     );
 }

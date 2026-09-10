@@ -43,3 +43,8 @@ bounded accelerator memory, checkpoint compatibility, and pinned evaluation
 metrics. Agent policies add capability non-escalation, prompt-injection fixtures,
 effect ceilings, semantic-edit validity, and candidate-versus-baseline evaluation.
 Statistical task/model quality remains separate from numerical agreement.
+
+Large-project validation additionally checks visibility, dependency direction,
+component cycles, interface compatibility, package locks, duplicate identities,
+deployment-version compatibility, and context-capsule budgets. Scale benchmarks
+are release gates rather than occasional stress tests.

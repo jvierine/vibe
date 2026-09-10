@@ -17,6 +17,8 @@ target/debug/vibec run examples/kinetic_energy.vibe -o /tmp/kinetic
 target/debug/vibec graph examples/kinetic_energy.vibe
 target/debug/vibec export-json examples/kinetic_energy.vibe
 target/debug/vibec show examples/kinetic_energy.vibe
+target/debug/vibec show examples/kinetic_energy.vibe @physics.kinetic_energy
+target/debug/vibec impact examples/kinetic_energy.vibe @physics.kinetic_energy
 ```
 
 The C backend is scaffolding, not the intended architecture. The stable boundary
@@ -37,14 +39,22 @@ Status and limits:
 The design documents are normative for direction. Executable behavior and tests
 are authoritative for what v0.1-bootstrap currently implements.
 
-Vibe does not persist a forest of JSON files. The planned store is one compact
-SQLite project database with canonical binary records; large numerical products
-remain HDF5 or content-addressed artifacts. Small schema-constrained JSON messages
-are used at the LLM tool boundary because they reduce ambiguity, and explicit
-JSON export is available on stdout. Human exports use Vibe source, Markdown,
-HTML, or text.
+Vibe does not persist a forest of JSON files. Human-readable Vibe source is
+canonical; one compact, rebuildable SQLite index accelerates graph queries. Large
+numerical products remain HDF5 or content-addressed artifacts. Small constrained
+JSON messages are used at the LLM tool boundary, and explicit JSON export is
+available on stdout. Human exports use Vibe source, Markdown, HTML, or text.
 
 AI training/inference, future accelerator portability, and inspectable LLM agent
 systems are first-class targets. See [AI_WORKLOADS.md](AI_WORKLOADS.md) and
 [AGENT_SYSTEMS.md](AGENT_SYSTEMS.md). The bootstrap does not yet claim accelerator
 or LLM-runtime support.
+
+Large programs are an architectural requirement, with explicit packages,
+components, semantic interfaces, separate compilation, bounded agent context, and
+scale gates. See [LARGE_PROGRAMS.md](LARGE_PROGRAMS.md).
+
+Incremental compilation uses separate interface/body/codegen fingerprints and
+typed dependency edges so unchanged interfaces stop invalidation. The design and
+acceptance gates are in
+[INCREMENTAL_COMPILATION.md](INCREMENTAL_COMPILATION.md).

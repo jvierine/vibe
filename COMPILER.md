@@ -59,6 +59,19 @@ objects. Development builds use minimal passes and incremental native linking;
 release builds enable whole-kernel optimization. External templates/generics are
 monomorphized only when static specialization has measured value.
 
+The query engine records typed fact dependencies while each computation runs and
+uses red/green invalidation: a changed input dirties direct queries, recomputation
+compares canonical outputs, and propagation stops when a result is unchanged.
+Development builds prohibit implicit cross-component inlining; release inlining
+adds explicit codegen dependency edges. `vibec build --explain` must account for
+every rebuild. See `INCREMENTAL_COMPILATION.md`.
+
+Package and component interfaces are compiled before implementations. Cross-boundary
+resolution sees only compact exported semantic interfaces. Each component produces
+a separately cacheable object/IR artifact keyed by interface hash, implementation
+hash, target, and compiler configuration. Cyclic component dependencies are
+rejected so build scheduling, invalidation, and agent context remain bounded.
+
 Compile-time risks are excessive shape specialization, unbounded monomorphization,
 whole-program effect/alias fixed points, large symbolic expressions, aggressive
 fusion search, AD code expansion, MLIR pass pipelines repeated per target, and

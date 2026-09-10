@@ -11,34 +11,37 @@ and compiler unit/integration tests pass.
 
 1. Freeze canonical grammar and typed HIR; add formatter, diagnostics, scalar
    comparisons/control flow, static/dynamic shapes, bounds and ownership rules.
-2. Persist semantic objects and revisioned edges in one SQLite project database;
-   implement transactional API, semantic diff, compact CBOR transport for bulk
-   clients, and bounded schema-constrained JSON tools for LLM agents. Never use
-   per-object JSON files.
-3. Add MLIR backend beside C; prove rank-1/2/3 explicit loops and fused array
+2. Implement workspace/project/package/component containment, explicit exports,
+   acyclic component dependencies, interface hashes, semantic API compatibility,
+   separate compilation, typed query dependencies, red/green invalidation, and
+   explainable rebuild plans. Large-program boundaries precede backend expansion.
+3. Build the rebuildable SQLite semantic index, transactional API, semantic diff,
+   bounded context capsules, compact CBOR for bulk clients, and constrained JSON
+   tools for LLM agents. Never use per-object JSON files.
+4. Add MLIR backend beside C; prove rank-1/2/3 explicit loops and fused array
    expressions, then retire C as a conformance oracle.
-4. Add contracts, first-class tests/properties/references, `verify`, evidence
+5. Add contracts, first-class tests/properties/references, `verify`, evidence
    manifests, and staleness propagation.
-5. Build empirical precision tool using f32/f64/MPFR clones; explicitly label it
+6. Build empirical precision tool using f32/f64/MPFR clones; explicitly label it
    empirical. Add interval backend later for eligible rigorous regions.
-6. Add C ABI array descriptor and BLAS/LAPACK adapters; demonstrate zero-copy
+7. Add C ABI array descriptor and BLAS/LAPACK adapters; demonstrate zero-copy
    `matmul` and `solve` with selectable Accelerate/OpenBLAS.
-7. Prototype Enzyme AD through loops; compare with central differences and
+8. Prototype Enzyme AD through loops; compare with central differences and
    symbolic derivatives, including derivative units.
-8. Add small symbolic DAG (`simplify`, `diff`, simple solve, compile) without
+9. Add small symbolic DAG (`simplify`, `diff`, simple solve, compile) without
    changing ordinary numeric execution.
-9. Add HDF5 datasets with units/provenance and plots to PDF/SVG/PNG. HDF5 is the
+10. Add HDF5 datasets with units/provenance and plots to PDF/SVG/PNG. HDF5 is the
    default scientific data product; CSV is import/export only, never an internal
    data product.
-10. Compile pure kernels to WASM; add a browser demonstration and WebGPU plotting
+11. Compile pure kernels to WASM; add a browser demonstration and WebGPU plotting
     adapter with WebGL fallback.
-11. Add tensor HIR, reverse-mode AD, StableHLO interchange, and CPU reference
+12. Add tensor HIR, reverse-mode AD, StableHLO interchange, and CPU reference
     kernels; validate a small CNN and transformer forward/backward pass.
-12. Add capability-based GPU placement, asynchronous runtime, fusion/autotuning,
+13. Add capability-based GPU placement, asynchronous runtime, fusion/autotuning,
     and one accelerator backend without vendor concepts entering model source.
-13. Add typed LLM calls, tool capabilities, agent state machines, causal traces,
+14. Add typed LLM calls, tool capabilities, agent state machines, causal traces,
     deterministic stub replay, semantic breakpoints, and agent evaluation suites.
-14. Validate a coding agent that transactionally creates/modifies another agent,
+15. Validate a coding agent that transactionally creates/modifies another agent,
     with regression gates and a first-divergence debugger.
 
 No milestone advances because a demo merely works. Each requires conformance,

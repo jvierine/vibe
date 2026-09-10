@@ -27,6 +27,12 @@ repair. Stable semantic IDs and typed edit APIs are preferred over asking a mode
 to reproduce whole source files; canonical Vibe text remains compact and usable
 when direct generation is appropriate.
 
+Large-program boundaries are semantic declarations, not inferred from directories.
+The only hierarchy is workspace, project, package, component, object. Packages and
+components have explicit exports; cross-component calls require exported stable
+identities and component dependencies must be acyclic. Imports select interfaces,
+not namespaces full of implementation details. See `LARGE_PROGRAMS.md`.
+
 ## Tiny grammar
 
 ```ebnf
