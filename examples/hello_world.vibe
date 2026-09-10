@@ -1,0 +1,4 @@
+fn @app.main() -> i32 {
+    print("Hello, world!");
+    return 0i32;
+}
