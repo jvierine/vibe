@@ -1,4 +1,13 @@
 /target
+**/.*.coordination/
+/tmp/
+/output/**/*.aux
+/output/**/*.log
+/output/**/*.out
+/output/**/*.fls
+/output/**/*.fdb_latexmk
+__pycache__/
+*.pyc
 /*.o
 /*.c
 /.vibe

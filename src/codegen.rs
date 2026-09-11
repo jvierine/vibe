@@ -15,6 +15,19 @@ pub fn emit_c(checked: &CheckedProgram) -> Result<String, String> {
         .collect();
     out.push_str("#include <complex.h>\ntypedef struct { float _Complex *data; size_t len; } vibe_array_complex64;\n");
     out.push_str("typedef struct { double _Complex *data; size_t len; } vibe_array_complex128;\n");
+    out.push_str("#include <math.h>\n#include <stdlib.h>\n#define VIBE_INLINE static inline __attribute__((unused))\ntypedef struct { bool *data; size_t len; } vibe_array_bool;\nVIBE_INLINE int64_t vibe_i64_from_f64(double x) { if (!isfinite(x) || x < -9223372036854775808.0 || x >= 9223372036854775808.0) { fputs(\"Vibe: invalid f64 to i64 conversion\\n\", stderr); abort(); } return (int64_t)x; }\nVIBE_INLINE double vibe_f64_from_i64(int64_t x) { return (double)x; }\n");
+    for scalar in [
+        Scalar::F32,
+        Scalar::F64,
+        Scalar::I32,
+        Scalar::I64,
+        Scalar::Bool,
+        Scalar::Complex64,
+        Scalar::Complex128,
+    ] {
+        out.push_str(&format!("VIBE_INLINE {} *vibe_at_{}(vibe_array_{} a, int64_t i) {{ if (i < 0 || (uint64_t)i >= a.len) {{ fputs(\"Vibe: array index out of bounds\\n\", stderr); abort(); }} return a.data+i; }}\n",scalar_c(&scalar),scalar.name(),scalar.name()));
+    }
+    out.push_str("#define VIBE_AT(a,i) (*_Generic((a), vibe_array_f32: vibe_at_f32, vibe_array_f64: vibe_at_f64, vibe_array_i32: vibe_at_i32, vibe_array_i64: vibe_at_i64, vibe_array_bool: vibe_at_bool, vibe_array_complex64: vibe_at_complex64, vibe_array_complex128: vibe_at_complex128)((a),(i)))\n");
     for f in &checked.program.functions {
         out.push_str(&signature(f));
         out.push_str(";\n");
@@ -68,6 +81,34 @@ fn emit_block(
     let pad = "    ".repeat(depth);
     for stmt in body {
         match stmt {
+            Stmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
+                out.push_str(&format!("{pad}if ({}) {{\n", emit_condition(condition)?));
+                emit_block(
+                    then_body,
+                    &mut env.clone(),
+                    function_results,
+                    depth + 1,
+                    out,
+                )?;
+                out.push_str(&format!("{pad}}} else {{\n"));
+                emit_block(
+                    else_body,
+                    &mut env.clone(),
+                    function_results,
+                    depth + 1,
+                    out,
+                )?;
+                out.push_str(&format!("{pad}}}\n"));
+            }
+            Stmt::While { condition, body } => {
+                out.push_str(&format!("{pad}while ({}) {{\n", emit_condition(condition)?));
+                emit_block(body, &mut env.clone(), function_results, depth + 1, out)?;
+                out.push_str(&format!("{pad}}}\n"));
+            }
             Stmt::Let {
                 name,
                 mutable: _,
@@ -192,8 +233,20 @@ fn emit_block(
     Ok(())
 }
 
+fn emit_condition(expr: &Expr) -> Result<String, String> {
+    match expr {
+        Expr::Compare { op, left, right } => {
+            Ok(format!("{} {op} {}", emit_expr(left)?, emit_expr(right)?))
+        }
+        _ => emit_expr(expr),
+    }
+}
+
 fn emit_expr(expr: &Expr) -> Result<String, String> {
     Ok(match expr {
+        Expr::Compare { op, left, right } => {
+            format!("({} {op} {})", emit_expr(left)?, emit_expr(right)?)
+        }
         Expr::Complex { real, imag } => format!(
             "__builtin_complex({}, {})",
             emit_number(real, &Scalar::F32, 1.0)?,
@@ -207,14 +260,16 @@ fn emit_expr(expr: &Expr) -> Result<String, String> {
         Expr::Var(name) => local_name(name),
         Expr::Array(_) => return Err("array literal is only valid in a let binding".into()),
         Expr::Index { array, index } => {
-            format!("({}).data[{}]", emit_expr(array)?, emit_expr(index)?)
+            format!("VIBE_AT({}, {})", emit_expr(array)?, emit_expr(index)?)
         }
         Expr::Call { function, args } if function == "len" => {
             format!("(int64_t)({}).len", emit_expr(&args[0])?)
         }
         Expr::Call { function, args } => format!(
             "{}({})",
-            mangle(function),
+            crate::intrinsics::lookup(function)
+                .map(|i| i.c_name.into())
+                .unwrap_or_else(|| mangle(function)),
             args.iter()
                 .map(emit_expr)
                 .collect::<Result<Vec<_>, _>>()?
@@ -233,6 +288,7 @@ fn infer_syntax(
     function_results: &HashMap<String, TypeSyntax>,
 ) -> TypeSyntax {
     match expr {
+        Expr::Compare { .. } => TypeSyntax::Scalar(Scalar::Bool, None),
         Expr::Complex { .. } => TypeSyntax::Scalar(Scalar::Complex64, None),
         Expr::String(_) => TypeSyntax::None,
         Expr::Number { scalar, unit, .. } => TypeSyntax::Scalar(scalar.clone(), unit.clone()),
@@ -254,9 +310,9 @@ fn infer_syntax(
             infer_syntax(left, env, function_results)
         }
         Expr::Call { function, .. } if function == "len" => TypeSyntax::Scalar(Scalar::I64, None),
-        Expr::Call { function, .. } => function_results
-            .get(function)
-            .cloned()
+        Expr::Call { function, .. } => crate::intrinsics::lookup(function)
+            .map(|i| TypeSyntax::Scalar(i.output, None))
+            .or_else(|| function_results.get(function).cloned())
             .unwrap_or(TypeSyntax::None),
     }
 }

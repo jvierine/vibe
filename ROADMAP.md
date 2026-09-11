@@ -14,8 +14,17 @@ The first [DESIGN.md](DESIGN.md) implementation increment adds query protocol v1
 snapshot-bound pagination, flat semantic body projections, expression replacement,
 and full-result query read guards (including newly added callers). Unsupported
 analyses are explicitly reported. See [AGENT_API.md](AGENT_API.md). Persistent
-indexes, durable node identities, ownership/bounds checks, and incremental checking
+indexes, durable node identities, general ownership/shape checks, and incremental checking
 remain the next gates, not completed facilities.
+
+The metablate example adds scalar comparisons, conditional/adaptive loops,
+strictly typed math intrinsics, checked casts and runtime indexed-access bounds.
+Its SI boundary checks do not yet provide dimension-typed heterogeneous records.
+
+The follow-up adds local advisory task coordination, filtered event polling,
+revision-linked agent reports, typed native ABI queries, and a content-addressed
+native cache in the study host. See [METABLATE_LESSONS.md](METABLATE_LESSONS.md).
+Distributed scheduling and function-level incremental compilation remain gates.
 
 ## First-class concurrent development requirement
 

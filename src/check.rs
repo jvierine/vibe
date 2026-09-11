@@ -39,6 +39,9 @@ pub fn check(program: Program) -> Result<CheckedProgram, Vec<String>> {
     let mut errors = Vec::new();
     let mut functions = BTreeMap::new();
     for f in &program.functions {
+        if crate::intrinsics::lookup(&f.id).is_some() {
+            errors.push(format!("reserved intrinsic identity {}", f.id));
+        }
         if functions.contains_key(&f.id) {
             errors.push(format!("line {}: duplicate identity {}", f.line, f.id));
             continue;
@@ -152,6 +155,15 @@ fn direct_effects(body: &[Stmt]) -> BTreeSet<String> {
                 effects.insert("io.stdout".into());
             }
             Stmt::For { body, .. } => effects.extend(direct_effects(body)),
+            Stmt::While { body, .. } => effects.extend(direct_effects(body)),
+            Stmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
+                effects.extend(direct_effects(then_body));
+                effects.extend(direct_effects(else_body));
+            }
             _ => {}
         }
     }
@@ -186,6 +198,33 @@ fn check_block(
 ) {
     for stmt in body {
         match stmt {
+            Stmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
+                check_condition(condition, env, functions, calls, errors);
+                check_block(
+                    then_body,
+                    &mut env.clone(),
+                    functions,
+                    result,
+                    calls,
+                    errors,
+                );
+                check_block(
+                    else_body,
+                    &mut env.clone(),
+                    functions,
+                    result,
+                    calls,
+                    errors,
+                );
+            }
+            Stmt::While { condition, body } => {
+                check_condition(condition, env, functions, calls, errors);
+                check_block(body, &mut env.clone(), functions, result, calls, errors);
+            }
             Stmt::Let {
                 name,
                 mutable,
@@ -346,6 +385,24 @@ fn expr_type(
     calls: &mut Vec<String>,
 ) -> Result<CheckedType, String> {
     match expr {
+        Expr::Compare { op, left, right } => {
+            if !matches!(op.as_str(), "<" | "<=" | ">" | ">=" | "==" | "!=") {
+                return Err("invalid comparison".into());
+            }
+            let a = expr_type(left, env, functions, calls)?;
+            let b = expr_type(right, env, functions, calls)?;
+            assignable(&a, &b)?;
+            if !matches!(
+                a,
+                CheckedType::Scalar(Scalar::I32 | Scalar::I64 | Scalar::F32 | Scalar::F64, _)
+            ) {
+                return Err(
+                    "comparison requires equal real or integer scalar types and compatible units"
+                        .into(),
+                );
+            }
+            Ok(CheckedType::Scalar(Scalar::Bool, Unit::dimensionless()))
+        }
         Expr::Complex { real, imag } => {
             validate_scaled_literal(real, &Scalar::F32, 1.0)?;
             validate_scaled_literal(imag, &Scalar::F32, 1.0)?;
@@ -413,6 +470,22 @@ fn expr_type(
             }
         }
         Expr::Call { function, args } => {
+            if let Some(intrinsic) = crate::intrinsics::lookup(function) {
+                if args.len() != intrinsic.inputs.len() {
+                    return Err(format!(
+                        "{function} expects {} arguments",
+                        intrinsic.inputs.len()
+                    ));
+                }
+                for (arg, scalar) in args.iter().zip(&intrinsic.inputs) {
+                    assignable(
+                        &CheckedType::Scalar(scalar.clone(), Unit::dimensionless()),
+                        &expr_type(arg, env, functions, calls)?,
+                    )?;
+                }
+                // Intrinsics are compiler-owned, not stored objects requiring transaction reads.
+                return Ok(CheckedType::Scalar(intrinsic.output, Unit::dimensionless()));
+            }
             let info = functions
                 .get(function)
                 .ok_or_else(|| format!("unknown function '{function}'"))?;
@@ -469,6 +542,20 @@ fn expr_type(
                 )),
             }
         }
+    }
+}
+
+fn check_condition(
+    condition: &Expr,
+    env: &HashMap<String, (CheckedType, bool)>,
+    functions: &BTreeMap<String, FunctionInfo>,
+    calls: &mut Vec<String>,
+    errors: &mut Vec<String>,
+) {
+    match expr_type(condition, env, functions, calls) {
+        Ok(CheckedType::Scalar(Scalar::Bool, u)) if u.dimensions.is_empty() => {}
+        Ok(_) => errors.push("condition must be bool".into()),
+        Err(error) => errors.push(error),
     }
 }
 

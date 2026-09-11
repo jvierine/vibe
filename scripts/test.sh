@@ -15,6 +15,8 @@ cargo test --manifest-path "$root/Cargo.toml"
 "$compiler" run "$root/examples/dot_product.vibe" -o "$tmp_dir/dot" | grep -qx '32'
 "$compiler" run "$root/examples/hello_world.vibe" -o "$tmp_dir/hello" | grep -qx 'Hello, world!'
 "$compiler" env check "$root/examples/hello_world.vibepack" | jq -e '.status == "checked"' >/dev/null
+"$compiler" env check "$root/examples/metablate/metablate.vibepack" | jq -e '.status == "checked" and .objects == 21' >/dev/null
+"$compiler" env abi "$root/examples/metablate/metablate.vibepack" @metablate.integrate | jq -e '.schema == "vibe.abi.v1" and .parameters[4].type.mutable == true and .result.scalar == "i64"' >/dev/null
 "$compiler" env capabilities "$root/examples/hello_world.vibepack" | jq -e '.query_schema == "vibe.query.v1"' >/dev/null
 printf '%s\n' '{"schema":"vibe.query.v1","snapshot":"main","op":"nodes","id":"@greeting.say"}' |
     "$compiler" env query "$root/examples/hello_world.vibepack" | grep -q 'string value="Hello, world!"'

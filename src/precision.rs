@@ -30,7 +30,7 @@ fn expression(e: &mut Expr) -> Result<(), String> {
         Expr::Complex { .. } => return Err("precision promotion of complex literals is not implemented; supply complex data through typed array parameters".into()),
         Expr::Number { scalar: s, .. } => scalar(s),
         Expr::Array(values) | Expr::Call { args: values, .. } => { for v in values { expression(v)?; } }
-        Expr::Index { array: left, index: right } | Expr::Binary { left, right, .. } => { expression(left)?; expression(right)?; }
+        Expr::Index { array: left, index: right } | Expr::Binary { left, right, .. } | Expr::Compare { left, right, .. } => { expression(left)?; expression(right)?; }
         Expr::Unary { value, .. } => expression(value)?,
         Expr::Var(_) | Expr::String(_) => {}
     }
@@ -39,6 +39,19 @@ fn expression(e: &mut Expr) -> Result<(), String> {
 fn block(body: &mut [Stmt]) -> Result<(), String> {
     for stmt in body {
         match stmt {
+            Stmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
+                expression(condition)?;
+                block(then_body)?;
+                block(else_body)?;
+            }
+            Stmt::While { condition, body } => {
+                expression(condition)?;
+                block(body)?;
+            }
             Stmt::Let {
                 annotation, value, ..
             } => {

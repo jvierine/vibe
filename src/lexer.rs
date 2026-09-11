@@ -4,6 +4,7 @@ pub enum TokenKind {
     Number(String),
     String(String),
     Symbol(char),
+    Comparison(String),
     Arrow,
     Range,
     Eof,
@@ -92,6 +93,16 @@ pub fn lex(source: &str) -> Result<Vec<Token>, String> {
             continue;
         }
         let start = column;
+        if matches!(c, '<' | '>' | '=' | '!') && chars.get(i + 1) == Some(&'=') {
+            out.push(Token {
+                kind: TokenKind::Comparison(format!("{c}=")),
+                line,
+                column,
+            });
+            i += 2;
+            column += 2;
+            continue;
+        }
         if c == '-' && chars.get(i + 1) == Some(&'>') {
             out.push(Token {
                 kind: TokenKind::Arrow,

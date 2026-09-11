@@ -137,6 +137,30 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Result<Stmt, String> {
+        if self.check_ident("if") {
+            self.at += 1;
+            let condition = self.expr()?;
+            let then_body = self.block()?;
+            let else_body = if self.check_ident("else") {
+                self.at += 1;
+                self.block()?
+            } else {
+                vec![]
+            };
+            return Ok(Stmt::If {
+                condition,
+                then_body,
+                else_body,
+            });
+        }
+        if self.check_ident("while") {
+            self.at += 1;
+            let condition = self.expr()?;
+            return Ok(Stmt::While {
+                condition,
+                body: self.block()?,
+            });
+        }
         if self.check_ident("let") {
             self.at += 1;
             let mutable = if self.check_ident("mut") {
@@ -213,7 +237,21 @@ impl Parser {
     }
 
     fn expr(&mut self) -> Result<Expr, String> {
-        self.add()
+        let left = self.add()?;
+        let operator = match &self.peek().kind {
+            TokenKind::Comparison(op) => Some(op.clone()),
+            TokenKind::Symbol(op @ ('<' | '>')) => Some(op.to_string()),
+            _ => None,
+        };
+        if let Some(op) = operator {
+            self.at += 1;
+            return Ok(Expr::Compare {
+                op,
+                left: Box::new(left),
+                right: Box::new(self.add()?),
+            });
+        }
+        Ok(left)
     }
     fn add(&mut self) -> Result<Expr, String> {
         let mut left = self.mul()?;

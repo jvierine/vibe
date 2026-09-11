@@ -39,6 +39,10 @@ pub fn capabilities() -> String {
     json!({
         "schema": "vibe.capabilities.v1",
         "query_schema": SCHEMA,
+        "abi": {"command":"env abi PROJECT @id [REVISION]","schema":"vibe.abi.v1"},
+        "coordination": {"command":"env coordinate PROJECT","schema":"vibe.coordination.v1",
+            "operations":["put","list","events"],"advisory":true,"authenticated":false,
+            "max_tasks":1000,"retained_events":512,"max_page_records":8},
         "operations": ["structure", "definition", "type", "units", "shape", "precision",
             "deps", "users", "calls", "callers", "nodes", "effects", "pure", "layout",
             "alias", "range", "uncertainty", "tests", "cost", "generated",
@@ -311,6 +315,7 @@ fn quoted(value: &str) -> String {
 
 fn expression_summary(expr: &Expr) -> String {
     match expr {
+        Expr::Compare { op, .. } => format!("compare operator={op}"),
         Expr::Number { text, scalar, unit } => format!(
             "number value={} scalar={} unit={}",
             quoted(text),
@@ -348,6 +353,19 @@ fn statement_records(body: &[Stmt], prefix: &str, records: &mut Vec<String>) {
     for (i, stmt) in body.iter().enumerate() {
         let path = format!("{prefix}/{i}");
         let summary = match stmt {
+            Stmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
+                statement_records(then_body, &format!("{path}/then"), records);
+                statement_records(else_body, &format!("{path}/else"), records);
+                "if".into()
+            }
+            Stmt::While { body, .. } => {
+                statement_records(body, &format!("{path}/body"), records);
+                "while".into()
+            }
             Stmt::Let {
                 name,
                 mutable,
@@ -398,6 +416,19 @@ fn walk_block(body: &mut [Stmt], prefix: &str, visit: &mut impl FnMut(&str, &mut
     for (i, stmt) in body.iter_mut().enumerate() {
         let path = format!("{prefix}/{i}");
         match stmt {
+            Stmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
+                walk_expr(condition, &format!("{path}/condition"), visit);
+                walk_block(then_body, &format!("{path}/then"), visit);
+                walk_block(else_body, &format!("{path}/else"), visit);
+            }
+            Stmt::While { condition, body } => {
+                walk_expr(condition, &format!("{path}/condition"), visit);
+                walk_block(body, &format!("{path}/body"), visit);
+            }
             Stmt::Let { value, .. } | Stmt::Print { value, .. } | Stmt::Expr(value) => {
                 walk_expr(value, &format!("{path}/value"), visit)
             }
@@ -430,7 +461,7 @@ fn walk_expr(expr: &mut Expr, path: &str, visit: &mut impl FnMut(&str, &mut Expr
             walk_expr(array, &format!("{path}/array"), visit);
             walk_expr(index, &format!("{path}/index"), visit);
         }
-        Expr::Binary { left, right, .. } => {
+        Expr::Binary { left, right, .. } | Expr::Compare { left, right, .. } => {
             walk_expr(left, &format!("{path}/left"), visit);
             walk_expr(right, &format!("{path}/right"), visit);
         }

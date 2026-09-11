@@ -74,6 +74,21 @@ reports representations, not a numerical guarantee or inferred accumulator polic
 expression kinds, values, and child paths. Large string contents are omitted with
 their hash. No full AST is emitted by default.
 
+`env abi PROJECT @id [REVISION]` exposes `vibe.abi.v1` typed host-C signatures,
+including actual native symbols, scalar types, SI dimensions and array mutability.
+Do not parse pretty-printed type descriptions for host bindings. See
+[METABLATE_LESSONS.md](METABLATE_LESSONS.md). The separate local task protocol
+is documented in [AGENT_COORDINATION.md](AGENT_COORDINATION.md).
+
+The numerical control-flow increment adds statements `if` (`condition`,
+`then_body`, `else_body`) and `while` (`condition`, `body`), plus expressions
+`compare` (`op`, `left`, `right`). Comparison `op` is exactly one of `==`, `!=`,
+`<`, `<=`, `>`, `>=`. Conditions must type-check as `bool`. Node projections
+expose condition/branch/body paths for revision-scoped edits. Reserved math and
+cast identities are documented in [LANGUAGE.md](LANGUAGE.md); they are compiler
+intrinsics rather than stored objects, so they do not require object read guards
+and are omitted from stored-function call edges.
+
 `calls`/`deps` and `callers`/`users` traverse forward/reverse call indexes, with
 optional `depth` (1–1024) or `transitive:true`. Default depth is one. At this stage
 dependency queries cover function call references, not future type, data, contract,

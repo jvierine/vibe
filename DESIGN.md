@@ -529,7 +529,7 @@ Publish measured p50/p95 results; targets are not existing performance guarantee
 | --- | --- |
 | Current bootstrap | Semantic CBOR transactions/history/Git integration; scalar/unit checks; rank-one arrays; C backend; FFT empirical comparison; v1 snapshot queries, revision-scoped expression edits, full-result query read guards |
 | Next: trustworthy queries | Versioned capabilities, body/node projection, typed dependency indexes, stable opaque IDs, explicit unknown/evidence statuses; snapshot/pagination tests |
-| Next: safe numerical memory | Shapes, runtime bounds, ownership/alias rules and effect ceilings; reject unsafe FFT buffer configurations |
+| Next: safe numerical memory | Extend implemented runtime indexed-access bounds with shapes, ownership/alias rules and effect ceilings; reject unsafe FFT buffer configurations |
 | Next: scalable environment | Incremental checking/codegen, read-set concurrency, segmented storage; no unrelated rebuilds and bounded transaction costs |
 | Then: fast kernels | Structured tensor operations, BLAS/FFT adapters, recorded lowering decisions, reproducible benchmarks |
 | Then: analysis and targets | AD, bounded uncertainty/symbolic services, WASM and accelerator paths, with independent validation |
@@ -569,6 +569,11 @@ at a snapshot; an ambiguous name never silently selects an object. Structural
 paths currently returned by `nodes` are not sufficient for same-function merging.
 
 ### Task specification, reservation, and authority
+
+Implemented bootstrap subset: [AGENT_COORDINATION.md](AGENT_COORDINATION.md)
+provides local task records, advisory leases, filtered polling and explicitly
+unverified revision-linked reports, outside the program pack. Authenticated
+reservations, distributed delivery and scheduler behavior below remain targets.
 
 A task is a versioned orchestration record referencing semantic targets and an
 accepted contract revision. A compact projection might be:

@@ -2,6 +2,7 @@ mod ast;
 mod check;
 mod codegen;
 mod environment;
+mod intrinsics;
 mod lexer;
 mod parser;
 mod precision;
@@ -109,6 +110,10 @@ fn run_environment(args: &[String]) -> Result<(), String> {
     let project = Path::new(project);
     match command.as_str() {
         "capabilities" => println!("{}", environment::capabilities()),
+        "coordinate" => {
+            let request = environment::read_request()?;
+            println!("{}", environment::coordinate(project, &request)?);
+        }
         "query" => {
             let request = environment::read_request()?;
             print!("{}", environment::query(project, &request)?);
@@ -135,6 +140,13 @@ fn run_environment(args: &[String]) -> Result<(), String> {
             println!(
                 "{}",
                 environment::inspect(project, id, args.get(4).map(String::as_str))?
+            );
+        }
+        "abi" => {
+            let id = args.get(3).ok_or("env abi requires a semantic identity")?;
+            println!(
+                "{}",
+                environment::abi(project, id, args.get(4).map(String::as_str))?
             );
         }
         "check" => {
@@ -247,10 +259,18 @@ fn build(checked: &check::CheckedProgram, output: &Path) -> Result<(), String> {
     let c_path = parent.join(format!(".{stem}.vibec.c"));
     fs::write(&c_path, c).map_err(|e| format!("cannot write generated C: {e}"))?;
     let result = Command::new("clang")
-        .args(["-std=c17", "-O2", "-Wall", "-Wextra", "-Werror"])
+        .args([
+            "-std=c17",
+            "-O2",
+            "-ffp-contract=off",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+        ])
         .arg(&c_path)
         .arg("-o")
         .arg(output)
+        .arg("-lm")
         .output()
         .map_err(|e| format!("could not invoke clang: {e}"))?;
     let _ = fs::remove_file(&c_path);
@@ -278,6 +298,8 @@ fn default_output(source: &str) -> PathBuf {
 }
 
 fn help() {
+    println!("Native ABI: vibec env abi PROJECT @id [REV_OR_BRANCH]");
+    println!("Agent coordination: vibec env coordinate PROJECT # vibe.coordination.v1 on stdin");
     println!(
         "Agent queries: vibec env capabilities PROJECT\n               vibec env query PROJECT  # vibe.query.v1 request on stdin"
     );

@@ -16,7 +16,9 @@ const MAX_TRANSACTION_BYTES: usize = 1024 * 1024;
 const MAX_OPERATIONS: usize = 1024;
 const MAX_BOOTSTRAP_STORE_BYTES: usize = 64 * 1024 * 1024;
 
+mod coordination;
 mod query;
+pub use coordination::coordinate;
 pub use query::{capabilities, query};
 
 #[derive(Serialize, Deserialize)]
@@ -127,6 +129,16 @@ enum ApiType {
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 enum ApiStatement {
+    If {
+        condition: ApiExpression,
+        then_body: Vec<ApiStatement>,
+        #[serde(default)]
+        else_body: Vec<ApiStatement>,
+    },
+    While {
+        condition: ApiExpression,
+        body: Vec<ApiStatement>,
+    },
     Let {
         name: String,
         #[serde(default)]
@@ -162,6 +174,11 @@ enum ApiStatement {
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 enum ApiExpression {
+    Compare {
+        operator: String,
+        left: Box<ApiExpression>,
+        right: Box<ApiExpression>,
+    },
     Complex {
         real: String,
         imag: String,
@@ -467,6 +484,30 @@ pub fn inspect(project: &Path, id: &str, selector: Option<&str>) -> Result<Strin
         "result": object["object"],
     })
     .to_string())
+}
+
+/// Structured bootstrap ABI: hosts must not parse human-oriented type displays.
+pub fn abi(project: &Path, id: &str, selector: Option<&str>) -> Result<String, String> {
+    fn ty(t: &check::CheckedType) -> serde_json::Value {
+        match t {
+            check::CheckedType::Scalar(s, u) => {
+                json!({"kind":"scalar","scalar":s,"si_dimensions":u.dimensions})
+            }
+            check::CheckedType::Array(s, rank, u, mutable) => {
+                json!({"kind":"array","scalar":s,"rank":rank,"mutable":mutable,"si_dimensions":u.dimensions,"layout":"pointer_then_size_t","extent":"dynamic"})
+            }
+            check::CheckedType::None => json!({"kind":"none"}),
+            check::CheckedType::Error => unreachable!("checked program"),
+        }
+    }
+    let (checked, revision) = load_at(project, selector)?;
+    let function = function_for(&checked.program, id)?;
+    let info = &checked.functions[id];
+    Ok(json!({"schema":"vibe.abi.v1","backend":"host_c17","revision":revision,
+        "id":id,"object_revision":object_revision(function),"symbol":codegen::mangle(id),
+        "parameters":function.params.iter().zip(&info.params).map(|(p,t)|json!({"name":p.name,"type":ty(t)})).collect::<Vec<_>>(),
+        "result":ty(&info.result),"effects":checked.effects[id],
+        "limits":["host ABI only","array extents not statically proven","complex scalars follow platform C complex ABI"]}).to_string())
 }
 
 pub fn branches(project: &Path) -> Result<String, String> {
@@ -936,6 +977,28 @@ impl ApiType {
 impl ApiStatement {
     fn into_statement(self) -> Result<Stmt, String> {
         Ok(match self {
+            Self::If {
+                condition,
+                then_body,
+                else_body,
+            } => Stmt::If {
+                condition: condition.into_expression()?,
+                then_body: then_body
+                    .into_iter()
+                    .map(Self::into_statement)
+                    .collect::<Result<_, _>>()?,
+                else_body: else_body
+                    .into_iter()
+                    .map(Self::into_statement)
+                    .collect::<Result<_, _>>()?,
+            },
+            Self::While { condition, body } => Stmt::While {
+                condition: condition.into_expression()?,
+                body: body
+                    .into_iter()
+                    .map(Self::into_statement)
+                    .collect::<Result<_, _>>()?,
+            },
             Self::Let {
                 name,
                 mutable,
@@ -986,6 +1049,20 @@ impl ApiStatement {
 impl ApiExpression {
     fn into_expression(self) -> Result<Expr, String> {
         Ok(match self {
+            Self::Compare {
+                operator,
+                left,
+                right,
+            } => {
+                if !matches!(operator.as_str(), "<" | "<=" | ">" | ">=" | "==" | "!=") {
+                    return Err(format!("invalid comparison operator '{operator}'"));
+                }
+                Expr::Compare {
+                    op: operator,
+                    left: Box::new(left.into_expression()?),
+                    right: Box::new(right.into_expression()?),
+                }
+            }
             Self::Complex { real, imag } => Expr::Complex { real, imag },
             Self::String { value } => Expr::String(value),
             Self::Number {

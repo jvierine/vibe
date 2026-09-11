@@ -29,7 +29,22 @@ Rationale, equations, assumptions, and provenance are typed semantic objects.
 
 Canonical core keywords are `const`, `type`, `fn`, `let`, `mut`, `if`, `for`,
 `while`, `match`, `return`, `extern`, `unsafe`, `test`, and `property`. The
-bootstrap implements only `fn`, `let`, `mut`, `for`, and `return`, plus `print`.
+bootstrap implements `fn`, `let`, `mut`, `if`/`else`, `for`, `while`, and
+`return`, plus `print`. Conditions must be `bool`; comparisons `==`, `!=`,
+`<`, `<=`, `>`, `>=` require compatible real scalar representations and units.
+Branch and loop bindings do not escape their scopes.
+
+The numerical bootstrap also provides dimensionless `f64` intrinsics under
+`@math.f64`: `sqrt`, `cbrt`, `exp`, `log`, `sin`, `cos`, `atan`, `atan2`, `abs`,
+`pow`, `min`, `max`, and `isfinite` (the latter returns `bool`). Explicit
+`@cast.i64_from_f64` rejects nonfinite/out-of-range values before truncation;
+`@cast.f64_from_i64` is an explicit, potentially inexact conversion. These are
+reserved compiler identities, not stored semantic objects. Unit normalization
+must be explicit at a mathematical boundary. `min`/`max` use C `fmin`/`fmax`
+NaN semantics. All indexed reads and writes check runtime bounds; failure
+terminates the native process. This is not a general ownership or alias proof.
+Native builds disable floating-point contraction and link the platform math
+library; cross-platform bitwise reproducibility is not promised.
 
 The bootstrap-only `print(...)` statement and unqualified `len(...)` builtin will
 be replaced by stable standard identities such as `@io.println(...)` and
@@ -66,6 +81,8 @@ block     = "{" statement* "}" ;
 statement = "let" "mut"? name (":" type)? "=" expr ";"
           | place "=" expr ";"
           | "for" name "in" expr ".." expr block
+          | "if" expr block ("else" block)?
+          | "while" expr block
           | "return" expr? ";"
           | "print" "(" expr ("->" unit_expr)? ")" ";"
           | expr ";" ;
@@ -74,7 +91,8 @@ array     = "[" (expr ("," expr)*)? "]" ;
 literal   = number unit? | string ;
 ```
 
-Precedence is call/index, unary, multiplicative, additive. There is one canonical
+Precedence is call/index, unary, multiplicative, additive, comparison. Comparison
+chaining is rejected. There is one canonical
 formatter; redundant parentheses are removed. Future syntax is added only when
 it represents a new semantic concept unavailable through ordinary functions.
 

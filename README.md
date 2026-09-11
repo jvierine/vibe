@@ -50,6 +50,20 @@ WASM. See [COMPILER.md](COMPILER.md) and [ROADMAP.md](ROADMAP.md).
 
 Status and limits:
 
+- [Programming token-efficiency benchmark](benchmarks/programming/README.md):
+  paired Vibe/Python/Rust tasks, correctness gates, real-usage telemetry and
+  token-per-success accounting. Calibration is explicitly separate from agent runs.
+
+- [Agent coordination](AGENT_COORDINATION.md): local versioned task records,
+  advisory leases, scoped change feeds and revision-linked agent reports.
+  [Metablate lessons](METABLATE_LESSONS.md) also introduce structured native ABI
+  queries and a content-addressed native cache for the study host.
+
+- [Metablate scientific example](examples/metablate/README.md): the SiO-study
+  thermal-ablation backend, adaptive RK45, events and boundary searches run in
+  compiled Vibe. Reproduces the local `ablatemm` studies with HDF5 results and
+  Python plots; includes independent numerical validation and a LaTeX report.
+
 - [Agent query API](AGENT_API.md#implemented-query-protocol-v1): snapshot-bound,
   paginated compiler facts and flat expression projections, typed expression
   replacement, and full-result query read guards for concurrent agents. Unknown
@@ -66,7 +80,8 @@ Status and limits:
 - String literals are currently supported only as direct arguments to `print`.
 - Integer and floating-point representations never promote implicitly.
 - Mutation is explicit. `io.stdout` effects are inferred through the call graph.
-  Bounds, declared effect ceilings, contracts, tests, and shapes are design
+  Indexed accesses now have runtime bounds checks. Declared effect ceilings,
+  general ownership, contracts, tests, and shapes are design
   commitments but only partially or not yet implemented.
 - Generated C is an internal bootstrap artifact; it is not a user interface or
   canonical source.

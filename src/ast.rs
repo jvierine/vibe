@@ -72,6 +72,15 @@ pub struct Param {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Stmt {
+    If {
+        condition: Expr,
+        then_body: Vec<Stmt>,
+        else_body: Vec<Stmt>,
+    },
+    While {
+        condition: Expr,
+        body: Vec<Stmt>,
+    },
     Let {
         name: String,
         mutable: bool,
@@ -98,6 +107,11 @@ pub enum Stmt {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Expr {
+    Compare {
+        op: String,
+        left: Box<Expr>,
+        right: Box<Expr>,
+    },
     Complex {
         real: String,
         imag: String,
