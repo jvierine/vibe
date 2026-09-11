@@ -6,3 +6,4 @@
 **/build/
 .*.vibepack.lock
 .*.vibepack.tmp-*
+.*.merge-*

@@ -115,21 +115,70 @@ fn run_environment(args: &[String]) -> Result<(), String> {
             let id = args
                 .get(3)
                 .ok_or_else(|| "env inspect requires a semantic identity".to_string())?;
-            println!("{}", environment::inspect(project, id)?);
+            println!(
+                "{}",
+                environment::inspect(project, id, args.get(4).map(String::as_str))?
+            );
         }
         "check" => {
-            let (checked, revision) = environment::load(project)?;
+            let (checked, revision) =
+                environment::load_at(project, args.get(3).map(String::as_str))?;
             println!(
                 "{{\"schema\":\"vibe.check.result.v0\",\"revision\":\"{revision}\",\"objects\":{},\"status\":\"checked\"}}",
                 checked.functions.len()
             );
         }
         "graph" => {
-            let (checked, _) = environment::load(project)?;
+            let (checked, _) = environment::load_at(project, args.get(3).map(String::as_str))?;
             print!("{}", codegen::architecture(&checked));
         }
+        "branches" => println!("{}", environment::branches(project)?),
+        "history" => println!(
+            "{}",
+            environment::history(project, args.get(3).map(String::as_str))?
+        ),
+        "branch" => {
+            let name = args
+                .get(3)
+                .ok_or_else(|| "env branch requires a branch name".to_string())?;
+            println!(
+                "{}",
+                environment::create_branch(project, name, args.get(4).map(String::as_str))?
+            );
+        }
+        "diff" => {
+            let from = args
+                .get(3)
+                .ok_or_else(|| "env diff requires FROM and TO selectors".to_string())?;
+            let to = args
+                .get(4)
+                .ok_or_else(|| "env diff requires FROM and TO selectors".to_string())?;
+            println!("{}", environment::diff(project, from, to)?);
+        }
+        "merge" => {
+            let target = args
+                .get(3)
+                .ok_or_else(|| "env merge requires TARGET and SOURCE branches".to_string())?;
+            let source = args
+                .get(4)
+                .ok_or_else(|| "env merge requires TARGET and SOURCE branches".to_string())?;
+            let name = args.get(5).map(String::as_str).unwrap_or("semantic_merge");
+            println!("{}", environment::merge(project, target, source, name)?);
+        }
+        "upgrade" => println!("{}", environment::upgrade(project)?),
+        "git-textconv" => print!("{}", environment::git_textconv(project)?),
+        "git-merge-driver" => {
+            let current = args
+                .get(3)
+                .ok_or_else(|| "git-merge-driver requires BASE CURRENT OTHER".to_string())?;
+            let other = args
+                .get(4)
+                .ok_or_else(|| "git-merge-driver requires BASE CURRENT OTHER".to_string())?;
+            environment::git_merge_driver(project, Path::new(current), Path::new(other))?;
+        }
+        "git-configure" => println!("{}", environment::git_configure(project)?),
         "build" | "run" => {
-            let (checked, _) = environment::load(project)?;
+            let (checked, _) = environment::load_at(project, option_arg(args, "--at"))?;
             if !checked.functions.contains_key("@app.main") {
                 return Err("native programs require @app.main with signature () -> i32".into());
             }
@@ -202,12 +251,17 @@ fn output_arg(args: &[String]) -> Option<PathBuf> {
         .find(|w| w[0] == "-o")
         .map(|w| PathBuf::from(&w[1]))
 }
+fn option_arg<'a>(args: &'a [String], option: &str) -> Option<&'a str> {
+    args.windows(2)
+        .find(|window| window[0] == option)
+        .map(|window| window[1].as_str())
+}
 fn default_output(source: &str) -> PathBuf {
     Path::new(source).with_extension("")
 }
 
 fn help() {
     println!(
-        "vibec 0.1.0-bootstrap\n\nEnvironment-owned programs:\n  vibec env apply PROJECT       # typed transaction on stdin\n  vibec env inspect PROJECT @id # bounded semantic query\n  vibec env check PROJECT\n  vibec env graph PROJECT\n  vibec env build PROJECT [-o OUTPUT]\n  vibec env run PROJECT [-o OUTPUT]\n\nBootstrap imports:\n  vibec check FILE\n  vibec build FILE [-o OUTPUT]\n  vibec run FILE [-o OUTPUT]\n  vibec graph FILE              # semantic architecture projection\n  vibec show FILE [@id]         # bounded semantic projection\n  vibec inspect-json FILE @id   # bounded LLM/tool projection\n  vibec callers FILE @id\n  vibec callees FILE @id\n  vibec impact FILE @id         # transitive affected callers\n  vibec export-json FILE        # explicit whole-program export\n  vibec emit-c FILE             # internal bootstrap backend output\n"
+        "vibec 0.1.0-bootstrap\n\nEnvironment-owned programs:\n  vibec env apply PROJECT                         # typed transaction on stdin\n  vibec env inspect PROJECT @id [REV_OR_BRANCH]  # bounded semantic query\n  vibec env check PROJECT [REV_OR_BRANCH]\n  vibec env graph PROJECT [REV_OR_BRANCH]\n  vibec env branches PROJECT\n  vibec env history PROJECT [REV_OR_BRANCH]\n  vibec env branch PROJECT NAME [FROM]\n  vibec env diff PROJECT FROM TO\n  vibec env merge PROJECT TARGET SOURCE [NAME]\n  vibec env upgrade PROJECT\n  vibec env git-configure PROJECT\n  vibec env build PROJECT [--at REV_OR_BRANCH] [-o OUTPUT]\n  vibec env run PROJECT [--at REV_OR_BRANCH] [-o OUTPUT]\n\nBootstrap imports:\n  vibec check FILE\n  vibec build FILE [-o OUTPUT]\n  vibec run FILE [-o OUTPUT]\n  vibec graph FILE              # semantic architecture projection\n  vibec show FILE [@id]         # bounded semantic projection\n  vibec inspect-json FILE @id   # bounded LLM/tool projection\n  vibec callers FILE @id\n  vibec callees FILE @id\n  vibec impact FILE @id         # transitive affected callers\n  vibec export-json FILE        # explicit whole-program export\n  vibec emit-c FILE             # internal bootstrap backend output\n"
     );
 }

@@ -36,6 +36,12 @@ vibec env apply PROJECT        # one typed transaction from stdin
 vibec env inspect PROJECT @id  # bounded object plus root/object revisions
 vibec env check PROJECT
 vibec env graph PROJECT
+vibec env branches PROJECT
+vibec env history PROJECT [revision-or-branch]
+vibec env branch PROJECT name [from]
+vibec env diff PROJECT from to
+vibec env merge PROJECT target source [name]
+vibec env git-configure PROJECT
 vibec env build PROJECT
 vibec env run PROJECT
 ```
@@ -48,10 +54,12 @@ or stale reads reject. Direct function dependencies must appear in the read set
 unless changed in the same transaction. The environment locks only the short
 compare, validate, and atomic commit section.
 
-These hashes currently provide concurrency control, not version history. Built-in
-version control requires retained immutable object revisions, a root revision DAG,
-named branches, historical queries, and semantic three-way merge. Until that is
-implemented, `.vibepack` is Git-compatible only as an opaque binary snapshot.
+The store retains immutable object revisions and a commit DAG with named heads.
+Historical revisions can be queried, checked, built, and compared. Object-level
+three-way merges either create a validated two-parent commit or return bounded
+identity conflicts without moving a branch. Git invokes the same semantics through
+the configured `.vibepack` merge and text-conversion drivers. See
+`VERSION_CONTROL.md`.
 
 The old `show`, `inspect-json`, and `export-json` commands operate on bootstrap
 text imports and are not the production workflow.
@@ -115,6 +123,7 @@ Abbreviated transaction envelope:
   "schema": "vibe.transaction.v0",
   "name": "add_atmospheric_drag",
   "base_revision": "sha256:...",
+  "branch": "main",
   "reads": [
     {"id": "@orbit.propagate", "revision": "sha256:..."}
   ],

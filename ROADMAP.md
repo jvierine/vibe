@@ -13,10 +13,12 @@ invalid units fail, and compiler unit/integration tests pass.
 ## Ordered milestones
 
 1. Expand the transactional object API, now implemented for atomic function
-   put/delete operations, revision tokens, bounded reads, and commit-time
-   validation. Add typed partial edits, semantic diffs, context capsules, revision
-   DAG/history, branches, semantic three-way merge, and explicit rebase support.
-   Retain text only as bootstrap import and internal compiler output.
+   put/delete operations, revision tokens, bounded reads, commit-time validation,
+   immutable history, branches, historical builds, object-level three-way merge,
+   and Git diff/merge drivers. Add typed partial edits, context capsules, explicit
+   conflict-resolution sessions, signed semantic commits, segmented packs,
+   compaction, reflogs, garbage collection, and server validation hooks. Retain
+   text only as bootstrap import and internal compiler output.
 2. Freeze the object schemas and typed HIR; add diagnostics, scalar
    comparisons/control flow, inferred effects, explicit parametric types, closed
    tagged unions, static/dynamic shapes, bounds, and ownership rules. Benchmark
@@ -26,9 +28,10 @@ invalid units fail, and compiler unit/integration tests pass.
    acyclic component dependencies, interface hashes, semantic API compatibility,
    separate compilation, typed query dependencies, red/green invalidation, and
    explainable rebuild plans. Large-program boundaries precede backend expansion.
-4. Build the rebuildable SQLite semantic index and canonical packfile store;
-   support compact CBOR for bulk clients and constrained JSON tool messages for
-   LLM agents. Never use per-object JSON files.
+4. Replace the bootstrap single-file store with bounded append-only compressed
+   pack segments, a small root/ref manifest, and the rebuildable SQLite semantic
+   index. Support compact CBOR for bulk clients and constrained JSON tool messages
+   for LLM agents. Never use per-object JSON files.
 5. Add MLIR backend beside C; prove rank-1/2/3 explicit loops and fused array
    expressions, then retire C as a conformance oracle.
 5. Add contracts, first-class tests/properties/references, `verify`, evidence

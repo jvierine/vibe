@@ -58,6 +58,12 @@ a compact manifest referenced from its semantic object, not an index row. No sta
 communicates by emitting directories of JSON. Numerical artifacts stay in their
 native compact formats.
 
+Semantic objects and commit trees are content-addressed independently of Git.
+Git checkpoints and transports pack snapshots; configured text-conversion and
+merge drivers expose semantic diffs and validated three-way merges. Compiler and
+Git revisions are related in manifests but deliberately not conflated: one Git
+commit may checkpoint several semantic transactions.
+
 ## Incrementality and latency
 
 Parsing, name resolution, typing, facts, HIR, validation, and objects are cached by

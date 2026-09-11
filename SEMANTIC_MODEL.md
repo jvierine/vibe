@@ -1,11 +1,13 @@
 # Semantic program object model
 
-The environment owns the canonical semantic graph in a transactional object
-store. Agents author it only through typed operations. A small number of
-version-controlled packfiles records canonical object revisions; it is never one
-file per object and is not intended for manual editing. A rebuildable, gitignored
+The environment owns the canonical semantic graph in a transactional,
+content-addressed object store. Agents author it only through typed operations.
+Immutable object revisions and commit trees form a revision DAG with named branch
+heads and semantic three-way merge. Git transports and checkpoints a small number
+of packfiles; it is never one file per object and is not intended for manual
+editing. A rebuildable, gitignored
 SQLite index at `.vibe/index.sqlite` accelerates queries. Generated `.vibe` text
-is an inspection, interchange, and bootstrap-import representation. Derived
+is an internal interchange and bootstrap-import representation. Derived
 revisions, edges, facts, and cache rows may be rebuilt.
 Packfiles and cached payloads use schema-versioned canonical CBOR where normalized columns are
 not useful. Source location is never identity. Each object has:

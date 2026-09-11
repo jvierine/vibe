@@ -28,16 +28,16 @@ target/debug/vibec impact examples/kinetic_energy.vibe @physics.kinetic_energy
 ```
 
 [`examples/hello_world.vibepack`](examples/hello_world.vibepack) is a complete,
-268-byte environment-authored program in one file. It contains no authored source
+small environment-authored program in one file. It contains no authored source
 text. Transaction JSON travels through standard input and is not persisted.
 Independent agents can commit disjoint objects from the same base revision; edits
 to the same object require its latest revision.
 
-Git can track `.vibepack` snapshots as binary files, but Git cannot semantically
-diff or merge them. The current environment has content revisions and atomic
-optimistic transactions, not built-in durable version control. The planned Vibe
-revision DAG will retain immutable object versions, parent roots, branches, and
-semantic merges; Git then remains an optional transport and archival layer.
+`.vibepack` now contains immutable object revisions, a commit DAG, and branches.
+`vibec` provides historical queries/builds, semantic diffs, three-way merge, and
+Git diff/merge drivers. Git remains the distributed transport, fork, signing,
+remote, pull, push, worktree, and CI layer. Run `vibec env git-configure` once per
+clone. See [VERSION_CONTROL.md](VERSION_CONTROL.md).
 
 The C backend is scaffolding, not the intended architecture. The stable boundary
 is typed Vibe HIR; the planned production path is HIR → MLIR → LLVM/native or

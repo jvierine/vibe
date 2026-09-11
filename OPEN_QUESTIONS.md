@@ -16,7 +16,8 @@ Questions stay here until an experiment or decision record resolves them.
   AD occur on Vibe HIR before bufferization?
 - How are external library error/rounding semantics represented when vendors do
   not specify them fully?
-- How should semantic identities merge across independently created branches?
+- Which same-object changes can safely field-merge beyond the implemented
+  identity-level three-way merge, and which must remain explicit conflicts?
 - Which symbolic simplifications are safe under `strict_fp` versus real algebra?
 - What minimum browser capability/effect model supports WASM and WebGPU without
   leaking JavaScript concepts into the language?

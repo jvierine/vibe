@@ -16,6 +16,9 @@ cargo test --manifest-path "$root/Cargo.toml"
 "$compiler" run "$root/examples/hello_world.vibe" -o "$tmp_dir/hello" | grep -qx 'Hello, world!'
 "$compiler" env check "$root/examples/hello_world.vibepack" | jq -e '.status == "checked"' >/dev/null
 "$compiler" env inspect "$root/examples/hello_world.vibepack" @app.main | jq -e '.result.effects == ["io.stdout"]' >/dev/null
+"$compiler" env branches "$root/examples/hello_world.vibepack" | jq -e '.branches[0].name == "main"' >/dev/null
+"$compiler" env history "$root/examples/hello_world.vibepack" | jq -e '.commits | length >= 1' >/dev/null
+"$compiler" env git-textconv "$root/examples/hello_world.vibepack" | grep -q '@app.main'
 "$compiler" env run "$root/examples/hello_world.vibepack" -o "$tmp_dir/env-hello" | grep -qx 'Hello, world!'
 "$compiler" show "$root/examples/kinetic_energy.vibe" @physics.kinetic_energy | grep -q 'interface:'
 "$compiler" callers "$root/examples/kinetic_energy.vibe" @physics.kinetic_energy | grep -qx '@app.main'

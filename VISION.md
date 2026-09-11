@@ -11,8 +11,11 @@ never a human or agent authoring interface. Humans never read it.
 
 ## Product
 
-A Vibe project is a typed semantic graph in an environment-owned object store,
-plus a reproducible build description. Every significant object has a durable identity such as
+A Vibe project is a typed semantic graph in an environment-owned,
+content-addressed object store, plus a reproducible build description. Immutable
+object revisions and commit trees form a semantic history DAG; Git provides
+distributed transport, forks, signing, remotes, and CI while `vibec` provides
+semantic diff and merge. Every significant object has a durable identity such as
 `@physics.plasma_frequency`, even when its display name or serialized location
 changes. Compiler facts connect functions, equations, datasets, tests, figures,
 results, assumptions, decisions, and external artifacts.
