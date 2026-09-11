@@ -1,6 +1,19 @@
-# Literate and human-facing model
+# Human understanding and validation interface
 
-A literate document is a semantic object graph rendered into prose, equations,
+Humans never read implementation serialization. They interact with an LLM that
+queries the programming environment and renders answers from the same versioned
+semantic facts used by the compiler and dependency tracker. It is a conversational
+explanation, experimentation, and audit interface, not an authoring surface.
+
+An answer about program behavior must name the program revision and attach its
+supporting object identities, contracts, tests, measurements, or uncertainty. The
+environment distinguishes compiler-derived fact, measured evidence, model
+interpretation, and unverified LLM explanation. A human can request a semantic
+diff, trace, scenario run, counterexample search, sensitivity analysis, or an
+independent validation transaction. This makes validation interactive without
+turning source code into the evidence.
+
+A document is a semantic object graph rendered into prose, equations,
 tables, diagrams, executable results, tests, and figures. It references objects by
 identity. Display order is editorial; dependency order comes from graph edges.
 
@@ -43,4 +56,3 @@ Figures store data revisions, transforms, plotting specification, units, rendere
 and the script/function identity that generated them. Scientific document
 templates default to showing script provenance and may hide it only through an
 explicit publication toggle.
-

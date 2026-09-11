@@ -1,4 +1,9 @@
-fn @app.main() -> i32 {
+fn @greeting.say() -> none {
     print("Hello, world!");
+    return;
+}
+
+fn @app.main() -> i32 {
+    @greeting.say();
     return 0i32;
 }

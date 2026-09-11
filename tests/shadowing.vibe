@@ -1,0 +1,5 @@
+fn @app.main() -> i32 {
+    let value = 1i32;
+    let value = 2i32;
+    return value;
+}

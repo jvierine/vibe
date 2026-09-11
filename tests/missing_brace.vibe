@@ -1,0 +1,3 @@
+fn @app.main() -> i32 {
+    print("unfinished");
+    return 0i32;

@@ -38,3 +38,5 @@ Questions stay here until an experiment or decision record resolves them.
 - Which object fields deserve normalized SQLite columns versus canonical CBOR,
   and what compaction policy bounds revision/evidence growth without weakening
   reproducibility?
+- Which open-source license should cover the compiler, runtime, and standard
+  library? Cargo publishing remains disabled until this is decided.

@@ -1,15 +1,13 @@
-// Units are erased after conversion to SI; f64 is part of every literal/type.
 fn @physics.kinetic_energy(mass: f64[kg], speed: f64[m/s]) -> f64[J] {
     return 0.5f64 * mass * speed * speed;
 }
 
 fn @app.main() -> i32 {
-    let mass = 1000.0f64 kg;
-    let speed = 20.0f64 m;
-    let seconds = 1.0f64 s;
+    let mass = 1000.0f64[kg];
+    let speed = 20.0f64[m];
+    let seconds = 1.0f64[s];
     let velocity = speed / seconds;
     let energy = @physics.kinetic_energy(mass, velocity);
     print(energy -> kJ);
     return 0i32;
 }
-

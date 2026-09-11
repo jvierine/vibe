@@ -2,4 +2,7 @@
 /*.o
 /*.c
 /.vibe
-
+**/.vibe/write.lock
+**/build/
+.*.vibepack.lock
+.*.vibepack.tmp-*

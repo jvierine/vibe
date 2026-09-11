@@ -1,8 +1,7 @@
 fn @app.main() -> i32 {
-    let distance = 3.0f64 m;
-    let time = 2.0f64 s;
+    let distance = 3.0f64[m];
+    let time = 2.0f64[s];
     let impossible = distance + time;
     print(impossible -> m);
     return 0i32;
 }
-

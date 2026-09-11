@@ -3,10 +3,16 @@
 ## Pipeline
 
 ```text
-canonical source / semantic transaction
+typed semantic transaction
+  -> validated object revision
+  -> canonical semantic graph
+  -> generated serialization when requested
+bootstrap text import
   -> lossless parse tree
   -> identity-resolved typed AST
-  -> one SQLite semantic database + dependency index
+  -> canonical semantic graph
+canonical semantic graph
+  -> rebuildable SQLite dependency index
   -> Vibe HIR (units, shapes, effects, ownership, FP mode)
   -> MLIR numerical pipeline
   -> LLVM IR
@@ -45,10 +51,12 @@ The current bootstrap replaces the MLIR/LLVM middle with readable C17 and invoke
 `clang`. It validates the surface language and end-to-end unit erasure but is not
 evidence for final performance.
 
-Compiler stages exchange typed in-memory structures. Incremental facts, HIR,
-dependency indexes, and evidence are stored as normalized rows or canonical CBOR
-inside the project database. No stage communicates by emitting directories of
-JSON. Large numerical artifacts remain in their native compact formats.
+Compiler stages exchange typed in-memory structures. The gitignored SQLite index
+caches dependency edges and small derived facts; large HIR/codegen objects use a
+rebuildable content-addressed cache. Durable evidence is a versioned artifact with
+a compact manifest referenced from its semantic object, not an index row. No stage
+communicates by emitting directories of JSON. Numerical artifacts stay in their
+native compact formats.
 
 ## Incrementality and latency
 

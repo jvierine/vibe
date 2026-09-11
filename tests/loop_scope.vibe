@@ -1,0 +1,6 @@
+fn @app.main() -> i32 {
+    for i in 0i64..1i64 {
+        let temporary = i;
+    }
+    return temporary;
+}

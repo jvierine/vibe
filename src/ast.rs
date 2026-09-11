@@ -1,4 +1,7 @@
-#[derive(Clone, Debug, PartialEq, Eq)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Scalar {
     Bool,
     I32,
@@ -29,7 +32,7 @@ impl Scalar {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TypeSyntax {
     Scalar(Scalar, Option<String>),
     Array {
@@ -41,12 +44,12 @@ pub enum TypeSyntax {
     None,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Program {
     pub functions: Vec<Function>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Function {
     pub id: String,
     pub params: Vec<Param>,
@@ -55,13 +58,13 @@ pub struct Function {
     pub line: usize,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Param {
     pub name: String,
     pub ty: TypeSyntax,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Stmt {
     Let {
         name: String,
@@ -87,7 +90,7 @@ pub enum Stmt {
     Expr(Expr),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Expr {
     String(String),
     Number {

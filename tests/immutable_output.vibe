@@ -1,11 +1,10 @@
 fn @numeric.fill(output: mut Array<f64,1>[m]) -> none {
-    output[0i64] = 1.0f64 m;
+    output[0i64] = 1.0f64[m];
     return;
 }
 
 fn @app.main() -> i32 {
-    let output: Array<f64,1>[m] = [0.0f64 m];
+    let output: Array<f64,1>[m] = [0.0f64[m]];
     @numeric.fill(output);
     return 0i32;
 }
-

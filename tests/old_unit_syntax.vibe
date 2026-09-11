@@ -1,0 +1,5 @@
+fn @app.main() -> i32 {
+    let distance = 3.0f64 m;
+    print(distance -> m);
+    return 0i32;
+}

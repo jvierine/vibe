@@ -6,10 +6,9 @@ fn @numeric.scale2(input: Array<f64,1>[m], output: mut Array<f64,1>[m]) -> none 
 }
 
 fn @app.main() -> i32 {
-    let input: Array<f64,1>[m] = [1.0f64 m, 2.0f64 m, 3.0f64 m];
-    let mut output: Array<f64,1>[m] = [0.0f64 m, 0.0f64 m, 0.0f64 m];
+    let input: Array<f64,1>[m] = [1.0f64[m], 2.0f64[m], 3.0f64[m]];
+    let mut output: Array<f64,1>[m] = [0.0f64[m], 0.0f64[m], 0.0f64[m]];
     @numeric.scale2(input, output);
     print(output[2i64] -> m);
     return 0i32;
 }
-

@@ -23,14 +23,16 @@ impl Parser {
         let line = self.peek().line;
         self.keyword("fn")?;
         let id = self.ident()?;
-        if !id.starts_with('@') {
-            return self.err("function identity must start with '@'");
+        if !is_semantic_identity(&id) {
+            return self.err(
+                "function identity must be '@' followed by dot-separated identifier segments",
+            );
         }
         self.symbol('(')?;
         let mut params = Vec::new();
         if !self.check_symbol(')') {
             loop {
-                let name = self.ident()?;
+                let name = self.local_ident()?;
                 self.symbol(':')?;
                 let ty = self.ty()?;
                 params.push(Param { name, ty });
@@ -73,6 +75,9 @@ impl Parser {
             let rank = rank_text
                 .parse()
                 .map_err(|_| self.message("array rank must be an integer"))?;
+            if rank == 0 {
+                return self.err("Array rank must be at least 1; use a scalar type for rank 0");
+            }
             self.symbol('>')?;
             let unit = self.optional_unit()?;
             return Ok(TypeSyntax::Array {
@@ -113,6 +118,9 @@ impl Parser {
                 _ => return self.err("invalid unit expression"),
             }
         }
+        if text.is_empty() {
+            return self.err("unit brackets cannot be empty; omit them for dimensionless values");
+        }
         Ok(Some(text))
     }
 
@@ -120,6 +128,9 @@ impl Parser {
         self.symbol('{')?;
         let mut body = Vec::new();
         while !self.take_symbol('}') {
+            if matches!(self.peek().kind, TokenKind::Eof) {
+                return self.err("expected '}' before end of file");
+            }
             body.push(self.statement()?);
         }
         Ok(body)
@@ -134,7 +145,7 @@ impl Parser {
             } else {
                 false
             };
-            let name = self.ident()?;
+            let name = self.local_ident()?;
             let annotation = if self.take_symbol(':') {
                 Some(self.ty()?)
             } else {
@@ -152,7 +163,7 @@ impl Parser {
         }
         if self.check_ident("for") {
             self.at += 1;
-            let index = self.ident()?;
+            let index = self.local_ident()?;
             self.keyword("in")?;
             let start = self.expr()?;
             self.range()?;
@@ -274,22 +285,22 @@ impl Parser {
         match self.next().kind.clone() {
             TokenKind::String(value) => Ok(Expr::String(value)),
             TokenKind::Number(text) => {
-                let (raw, scalar) = split_number(&text).ok_or_else(|| {
-                    self.message("numeric literals require a suffix such as f64 or i32")
-                })?;
-                let unit = if matches!(&self.peek().kind, TokenKind::Ident(s) if !is_keyword(s) && !s.starts_with('@'))
-                {
-                    Some(self.unit_atom_product())
-                } else {
-                    None
-                };
+                let (raw, scalar) = split_number(&text).map_err(|message| self.message(message))?;
+                let unit = self.optional_unit()?;
+                if matches!(self.peek().kind, TokenKind::Ident(_)) {
+                    return self.err("unit literals require brackets, for example 3.0f64[m]");
+                }
                 Ok(Expr::Number {
                     text: raw,
                     scalar,
                     unit,
                 })
             }
-            TokenKind::Ident(name) => Ok(Expr::Var(name)),
+            TokenKind::Ident(name) if name.starts_with('@') && is_semantic_identity(&name) => {
+                Ok(Expr::Var(name))
+            }
+            TokenKind::Ident(name) if is_local_identifier(&name) => Ok(Expr::Var(name)),
+            TokenKind::Ident(_) => self.err("invalid local or semantic identifier"),
             TokenKind::Symbol('(') => {
                 let e = self.expr()?;
                 self.symbol(')')?;
@@ -313,25 +324,6 @@ impl Parser {
         }
     }
 
-    fn unit_atom_product(&mut self) -> String {
-        let mut out = self.ident().expect("checked identifier");
-        while matches!(self.peek().kind, TokenKind::Symbol('*' | '/' | '^')) {
-            if let TokenKind::Symbol(c) = self.next().kind {
-                out.push(c);
-            }
-            match self.next().kind.clone() {
-                TokenKind::Ident(s) | TokenKind::Number(s) => out.push_str(&s),
-                TokenKind::Symbol('-') => {
-                    out.push('-');
-                    if let TokenKind::Number(s) = self.next().kind.clone() {
-                        out.push_str(&s);
-                    }
-                }
-                _ => break,
-            }
-        }
-        out
-    }
     fn unit_until(&mut self, stop: char) -> Result<String, String> {
         let mut out = String::new();
         while !self.check_symbol(stop) {
@@ -347,6 +339,14 @@ impl Parser {
         match self.next().kind.clone() {
             TokenKind::Ident(s) => Ok(s),
             _ => self.err("expected identifier"),
+        }
+    }
+    fn local_ident(&mut self) -> Result<String, String> {
+        let name = self.ident()?;
+        if is_local_identifier(&name) && !is_reserved(&name) {
+            Ok(name)
+        } else {
+            self.err("expected a non-reserved local identifier")
         }
     }
     fn number(&mut self) -> Result<String, String> {
@@ -405,7 +405,9 @@ impl Parser {
     }
     fn next(&mut self) -> &Token {
         let at = self.at;
-        self.at += 1;
+        if self.at + 1 < self.tokens.len() {
+            self.at += 1;
+        }
         &self.tokens[at]
     }
     fn message(&self, msg: &str) -> String {
@@ -416,7 +418,47 @@ impl Parser {
     }
 }
 
-fn split_number(text: &str) -> Option<(String, Scalar)> {
+fn is_local_identifier(name: &str) -> bool {
+    let mut chars = name.chars();
+    chars
+        .next()
+        .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+fn is_semantic_identity(name: &str) -> bool {
+    name.strip_prefix('@').is_some_and(|rest| {
+        !rest.is_empty()
+            && rest
+                .split('.')
+                .all(|segment| is_local_identifier(segment) && !is_reserved(segment))
+    })
+}
+
+fn is_reserved(name: &str) -> bool {
+    matches!(
+        name,
+        "const"
+            | "type"
+            | "fn"
+            | "let"
+            | "mut"
+            | "if"
+            | "for"
+            | "in"
+            | "while"
+            | "match"
+            | "return"
+            | "extern"
+            | "unsafe"
+            | "test"
+            | "property"
+            | "print"
+            | "none"
+    )
+}
+
+fn split_number(text: &str) -> Result<(String, Scalar), &'static str> {
     for (suffix, ty) in [
         ("f64", Scalar::F64),
         ("f32", Scalar::F32),
@@ -424,12 +466,20 @@ fn split_number(text: &str) -> Option<(String, Scalar)> {
         ("i32", Scalar::I32),
     ] {
         if let Some(raw) = text.strip_suffix(suffix) {
-            return Some((raw.replace('_', ""), ty));
+            let raw = raw.replace('_', "");
+            let valid = match ty {
+                Scalar::F32 => raw.parse::<f32>().is_ok_and(f32::is_finite),
+                Scalar::F64 => raw.parse::<f64>().is_ok_and(f64::is_finite),
+                Scalar::I32 => raw.parse::<i32>().is_ok(),
+                Scalar::I64 => raw.parse::<i64>().is_ok(),
+                Scalar::Bool => false,
+            };
+            return if valid {
+                Ok((raw, ty))
+            } else {
+                Err("invalid or out-of-range numeric literal")
+            };
         }
     }
-    None
-}
-
-fn is_keyword(s: &str) -> bool {
-    matches!(s, "in" | "let" | "mut" | "for" | "return" | "print" | "fn")
+    Err("numeric literals require a suffix such as f64 or i32")
 }

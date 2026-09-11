@@ -1,0 +1,3 @@
+fn @bad.rank_zero(value: Array<f64,0>) -> none {
+    return;
+}

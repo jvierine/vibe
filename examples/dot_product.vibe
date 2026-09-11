@@ -1,4 +1,3 @@
-// A bootstrap-level AI primitive. Tensor HIR and accelerators are not implemented.
 fn @tensor.dot_f32(left: Array<f32,1>, right: Array<f32,1>) -> f32 {
     let mut sum = 0.0f32;
     for i in 0i64..len(left) {

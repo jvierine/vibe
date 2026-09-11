@@ -1,5 +1,10 @@
 # Large-program architecture
 
+Neither a human nor an LLM reads a large program as text. Agents operate on
+bounded semantic neighborhoods through the environment. Humans converse with an
+LLM that grounds architecture, behavior, evidence, provenance, and validation
+answers in those same versioned objects.
+
 Large-program comprehension is a primary language constraint. Vibe may not rely
 on an LLM reading an entire repository, humans remembering informal boundaries,
 or whole-program compilation for ordinary edits.
@@ -14,8 +19,8 @@ workspace -> project -> package -> component -> semantic object
 
 A workspace selects projects and dependency versions. A project produces one or
 more deployable programs or libraries. A package is independently versioned and
-compiled. A component is the architectural unit an agent or human can understand
-in one bounded context. Functions, types, datasets, equations, tests, and results
+compiled. A component is the architectural unit an agent can operate on and an
+LLM can explain in one bounded context. Functions, types, datasets, equations, tests, and results
 are semantic objects.
 
 Packages and components declare explicit public interfaces. Everything else is
@@ -24,9 +29,10 @@ lookup across a boundary does not exist. Component dependencies form a directed
 acyclic graph. Mutually dependent objects must share a component or communicate
 through a smaller extracted interface. This keeps impact and compilation bounded.
 
-Source files are canonical serialization shards, not modules or identities.
-Objects may move between files without API changes. A human-readable package
-manifest records exports, dependency constraints, capabilities, and release policy.
+Environment-owned semantic objects and packfiles are canonical; files are not
+modules or identities. Storage records may move without API changes. A generated
+package view reports exports, dependency constraints, capabilities, and release
+policy.
 
 ## Semantic interfaces
 
@@ -37,7 +43,7 @@ target availability, stability, purpose, equations, and assumptions.
 `vibec api-diff` classifies compatibility changes. A unit, shape, effect, error,
 precision, capability, or contract change cannot hide behind an unchanged binary
 signature. Packages compile against compact interface summaries. Implementation
-source is loaded only when an agent edits or debugs it.
+body objects are loaded only when an agent changes or debugs them.
 
 Separate compilation distinguishes interface and implementation hashes. A private
 body change invalidates its component code and relevant validation, not every

@@ -2,23 +2,34 @@
 
 ## Current: v0.1-bootstrap
 
-Hand-written Rust lexer/parser, stable function IDs, explicit numeric literals,
-SI dimensional checking, rank-one arrays and loops, human-readable architecture,
-optional JSON stdout export, C17 emission, and native execution. Gate: examples run, invalid units fail,
-and compiler unit/integration tests pass.
+Transactional environment API with a single CBOR program store, atomic commits,
+object-level optimistic revision checks, declared read sets, safe disjoint-write
+merging, bounded object queries, plus a hand-written bootstrap
+import parser, stable function IDs, explicit numeric literals, SI dimensional
+checking, rank-one arrays and loops, C17 emission, and native execution. Gate:
+environment-authored Hello World runs, conflicting writes reject, examples run,
+invalid units fail, and compiler unit/integration tests pass.
 
 ## Ordered milestones
 
-1. Freeze canonical grammar and typed HIR; add formatter, diagnostics, scalar
-   comparisons/control flow, static/dynamic shapes, bounds and ownership rules.
-2. Implement workspace/project/package/component containment, explicit exports,
+1. Expand the transactional object API, now implemented for atomic function
+   put/delete operations, revision tokens, bounded reads, and commit-time
+   validation. Add typed partial edits, semantic diffs, context capsules, revision
+   DAG/history, branches, semantic three-way merge, and explicit rebase support.
+   Retain text only as bootstrap import and internal compiler output.
+2. Freeze the object schemas and typed HIR; add diagnostics, scalar
+   comparisons/control flow, inferred effects, explicit parametric types, closed
+   tagged unions, static/dynamic shapes, bounds, and ownership rules. Benchmark
+   tool schemas and context projections across LLMs for token cost, first-pass
+   validity, repair count, and semantic error rate.
+3. Implement workspace/project/package/component containment, explicit exports,
    acyclic component dependencies, interface hashes, semantic API compatibility,
    separate compilation, typed query dependencies, red/green invalidation, and
    explainable rebuild plans. Large-program boundaries precede backend expansion.
-3. Build the rebuildable SQLite semantic index, transactional API, semantic diff,
-   bounded context capsules, compact CBOR for bulk clients, and constrained JSON
-   tools for LLM agents. Never use per-object JSON files.
-4. Add MLIR backend beside C; prove rank-1/2/3 explicit loops and fused array
+4. Build the rebuildable SQLite semantic index and canonical packfile store;
+   support compact CBOR for bulk clients and constrained JSON tool messages for
+   LLM agents. Never use per-object JSON files.
+5. Add MLIR backend beside C; prove rank-1/2/3 explicit loops and fused array
    expressions, then retire C as a conformance oracle.
 5. Add contracts, first-class tests/properties/references, `verify`, evidence
    manifests, and staleness propagation.

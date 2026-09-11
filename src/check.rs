@@ -1,12 +1,13 @@
 use crate::ast::*;
 use crate::units::{self, Unit};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 #[derive(Clone, Debug)]
 pub enum CheckedType {
     Scalar(Scalar, Unit),
     Array(Scalar, usize, Unit, bool),
     None,
+    Error,
 }
 
 impl CheckedType {
@@ -15,6 +16,7 @@ impl CheckedType {
             Self::Scalar(s, u) => format!("{}[{}]", s.name(), u.display),
             Self::Array(s, r, u, _) => format!("Array<{},{}>[{}]", s.name(), r, u.display),
             Self::None => "none".into(),
+            Self::Error => "<error>".into(),
         }
     }
 }
@@ -30,6 +32,7 @@ pub struct CheckedProgram {
     pub program: Program,
     pub functions: BTreeMap<String, FunctionInfo>,
     pub calls: BTreeMap<String, Vec<String>>,
+    pub effects: BTreeMap<String, BTreeSet<String>>,
 }
 
 pub fn check(program: Program) -> Result<CheckedProgram, Vec<String>> {
@@ -45,6 +48,15 @@ pub fn check(program: Program) -> Result<CheckedProgram, Vec<String>> {
             .iter()
             .map(|p| checked_type(&p.ty))
             .collect::<Result<Vec<_>, _>>();
+        let mut parameter_names = BTreeSet::new();
+        for parameter in &f.params {
+            if !parameter_names.insert(&parameter.name) {
+                errors.push(format!(
+                    "line {}: duplicate parameter '{}' in {}",
+                    f.line, parameter.name, f.id
+                ));
+            }
+        }
         let result = checked_type(&f.result);
         match (params, result) {
             (Ok(params), Ok(result)) => {
@@ -75,17 +87,75 @@ pub fn check(program: Program) -> Result<CheckedProgram, Vec<String>> {
             found_calls.sort();
             found_calls.dedup();
             calls.insert(f.id.clone(), found_calls);
+            if !matches!(f.body.last(), Some(Stmt::Return(_))) {
+                errors.push(format!(
+                    "line {}: function {} must end with an explicit return",
+                    f.line, f.id
+                ));
+            }
+        }
+    }
+    if let Some(main) = functions.get("@app.main") {
+        let valid_result = matches!(
+            &main.result,
+            CheckedType::Scalar(Scalar::I32, unit) if unit.dimensions.is_empty()
+        );
+        if !main.params.is_empty() || !valid_result {
+            errors.push("@app.main must have signature () -> i32".into());
         }
     }
     if errors.is_empty() {
+        let effects = infer_effects(&program, &calls);
         Ok(CheckedProgram {
             program,
             functions,
             calls,
+            effects,
         })
     } else {
         Err(errors)
     }
+}
+
+fn infer_effects(
+    program: &Program,
+    calls: &BTreeMap<String, Vec<String>>,
+) -> BTreeMap<String, BTreeSet<String>> {
+    let mut effects: BTreeMap<String, BTreeSet<String>> = program
+        .functions
+        .iter()
+        .map(|function| (function.id.clone(), direct_effects(&function.body)))
+        .collect();
+    loop {
+        let previous = effects.clone();
+        for (caller, callees) in calls {
+            for callee in callees {
+                if let Some(callee_effects) = previous.get(callee) {
+                    effects
+                        .entry(caller.clone())
+                        .or_default()
+                        .extend(callee_effects.iter().cloned());
+                }
+            }
+        }
+        if effects == previous {
+            return effects;
+        }
+    }
+}
+
+fn direct_effects(body: &[Stmt]) -> BTreeSet<String> {
+    let mut effects = BTreeSet::new();
+    for statement in body {
+        match statement {
+            Stmt::Print { .. } => {
+                effects.insert("io.stdout".into());
+            }
+            Stmt::For { body, .. } => effects.extend(direct_effects(body)),
+            _ => {}
+        }
+    }
+    effects
 }
 
 fn checked_type(ty: &TypeSyntax) -> Result<CheckedType, String> {
@@ -139,11 +209,28 @@ fn check_block(
                     } else {
                         inferred
                     };
-                    env.insert(name.clone(), (actual, *mutable));
+                    if env.contains_key(name) {
+                        errors.push(format!(
+                            "binding '{name}' shadows an existing binding; shadowing is forbidden"
+                        ));
+                    } else {
+                        env.insert(name.clone(), (actual, *mutable));
+                    }
                 }
-                Err(e) => errors.push(format!("binding {name}: {e}")),
+                Err(e) => {
+                    errors.push(format!("binding {name}: {e}"));
+                    env.insert(name.clone(), (CheckedType::Error, *mutable));
+                }
             },
             Stmt::Assign { target, value } => {
+                let valid_target = matches!(target, Expr::Var(_))
+                    || matches!(target, Expr::Index { array, .. } if matches!(array.as_ref(), Expr::Var(_)));
+                if !valid_target {
+                    errors.push(
+                        "assignment target must be a mutable binding or its direct array element"
+                            .into(),
+                    );
+                }
                 let lhs = expr_type(target, env, functions, calls);
                 let rhs = expr_type(value, env, functions, calls);
                 if let Expr::Var(name) = target
@@ -172,30 +259,34 @@ fn check_block(
                 end,
                 body,
             } => {
-                for bound in [start, end] {
-                    match expr_type(bound, env, functions, calls) {
-                        Ok(CheckedType::Scalar(Scalar::I32 | Scalar::I64, u))
-                            if u.dimensions.is_empty() => {}
-                        Ok(t) => errors.push(format!(
-                            "loop bound must be a dimensionless integer, got {}",
-                            t.describe()
+                if env.contains_key(index) {
+                    errors.push(format!(
+                        "loop index '{index}' shadows an existing binding; shadowing is forbidden"
+                    ));
+                }
+                let start_type = expr_type(start, env, functions, calls);
+                let end_type = expr_type(end, env, functions, calls);
+                for bound in [&start_type, &end_type] {
+                    match bound {
+                        Ok(CheckedType::Scalar(Scalar::I64, unit))
+                            if unit.dimensions.is_empty() => {}
+                        Ok(CheckedType::Error) => {}
+                        Ok(ty) => errors.push(format!(
+                            "loop bounds must be dimensionless i64 values, got {}",
+                            ty.describe()
                         )),
-                        Err(e) => errors.push(e),
+                        Err(error) => errors.push(error.clone()),
                     }
                 }
-                let old = env.insert(
+                let mut loop_env = env.clone();
+                loop_env.insert(
                     index.clone(),
                     (
                         CheckedType::Scalar(Scalar::I64, Unit::dimensionless()),
                         false,
                     ),
                 );
-                check_block(body, env, functions, result, calls, errors);
-                if let Some(old) = old {
-                    env.insert(index.clone(), old);
-                } else {
-                    env.remove(index);
-                }
+                check_block(body, &mut loop_env, functions, result, calls, errors);
             }
             Stmt::Return(value) => {
                 let got = match value {
@@ -230,6 +321,7 @@ fn check_block(
                         }
                     }
                 }
+                Ok(CheckedType::Error) => {}
                 Ok(t) => errors.push(format!(
                     "print supports scalars in v0.1, got {}",
                     t.describe()
@@ -253,10 +345,11 @@ fn expr_type(
 ) -> Result<CheckedType, String> {
     match expr {
         Expr::String(_) => Err("strings are only supported directly inside print in v0.1".into()),
-        Expr::Number { scalar, unit, .. } => Ok(CheckedType::Scalar(
-            scalar.clone(),
-            units::parse(unit.as_deref())?,
-        )),
+        Expr::Number { text, scalar, unit } => {
+            let unit = units::parse(unit.as_deref())?;
+            validate_scaled_literal(text, scalar, unit.scale)?;
+            Ok(CheckedType::Scalar(scalar.clone(), unit))
+        }
         Expr::Var(name) => env
             .get(name)
             .map(|x| x.0.clone())
@@ -280,6 +373,7 @@ fn expr_type(
         Expr::Index { array, index } => {
             match expr_type(index, env, functions, calls)? {
                 CheckedType::Scalar(Scalar::I32 | Scalar::I64, u) if u.dimensions.is_empty() => {}
+                CheckedType::Error => return Ok(CheckedType::Error),
                 t => {
                     return Err(format!(
                         "array index must be dimensionless integer, got {}",
@@ -292,6 +386,7 @@ fn expr_type(
                 CheckedType::Array(_, rank, _, _) => {
                     Err(format!("rank-{rank} indexing is not implemented yet"))
                 }
+                CheckedType::Error => Ok(CheckedType::Error),
                 t => Err(format!("cannot index {}", t.describe())),
             }
         }
@@ -303,6 +398,7 @@ fn expr_type(
                 CheckedType::Array(..) => {
                     Ok(CheckedType::Scalar(Scalar::I64, Unit::dimensionless()))
                 }
+                CheckedType::Error => Ok(CheckedType::Error),
                 t => Err(format!("len expects an array, got {}", t.describe())),
             }
         }
@@ -343,6 +439,7 @@ fn expr_type(
                 expr_type(right, env, functions, calls)?,
             );
             match (a, b) {
+                (CheckedType::Error, _) | (_, CheckedType::Error) => Ok(CheckedType::Error),
                 (CheckedType::Scalar(sa, ua), CheckedType::Scalar(sb, ub)) if sa == sb => {
                     match op {
                         '+' | '-' if ua.compatible(&ub) => Ok(CheckedType::Scalar(sa, ua)),
@@ -365,8 +462,41 @@ fn expr_type(
     }
 }
 
+fn validate_scaled_literal(text: &str, scalar: &Scalar, scale: f64) -> Result<(), String> {
+    let valid = match scalar {
+        Scalar::F32 => text
+            .parse::<f32>()
+            .is_ok_and(|value| (value * scale as f32).is_finite()),
+        Scalar::F64 => text
+            .parse::<f64>()
+            .is_ok_and(|value| (value * scale).is_finite()),
+        Scalar::I32 => text.parse::<i32>().is_ok_and(|value| {
+            let scaled = value as f64 * scale;
+            scaled.fract() == 0.0 && scaled >= i32::MIN as f64 && scaled <= i32::MAX as f64
+        }),
+        Scalar::I64 => text.parse::<i64>().is_ok_and(|value| {
+            if scale == 1.0 {
+                true
+            } else {
+                let scaled = value as f64 * scale;
+                scaled.fract() == 0.0 && scaled >= i64::MIN as f64 && scaled <= i64::MAX as f64
+            }
+        }),
+        Scalar::Bool => false,
+    };
+    if valid {
+        Ok(())
+    } else {
+        Err(format!(
+            "literal {text} is not representable after unit scaling as {}",
+            scalar.name()
+        ))
+    }
+}
+
 fn assignable(expected: &CheckedType, actual: &CheckedType) -> Result<(), String> {
     let ok = match (expected, actual) {
+        (CheckedType::Error, _) | (_, CheckedType::Error) => true,
         (CheckedType::None, CheckedType::None) => true,
         (CheckedType::Scalar(a, ua), CheckedType::Scalar(b, ub)) => a == b && ua.compatible(ub),
         (CheckedType::Array(a, ra, ua, _), CheckedType::Array(b, rb, ub, _)) => {

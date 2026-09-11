@@ -92,7 +92,8 @@ between worktrees. Failed or cancelled computations never poison cache entries.
 
 The gitignored SQLite index stores query keys, dependency edges, and small results.
 Large HIR/codegen artifacts live in a bounded content-addressed cache. Both are
-rebuildable from canonical source and locked dependencies. Cache garbage
+rebuildable from canonical semantic packfiles and locked dependencies. Cache
+garbage
 collection respects active project roots and reproducibility retention policy.
 
 ## Acceptance gates
@@ -111,4 +112,3 @@ For the large synthetic project defined in `LARGE_PROGRAMS.md`:
 - adding an unrelated package produces zero invalidations;
 - incremental and clean builds produce byte-identical interfaces and semantically
   identical executable manifests.
-

@@ -1,10 +1,13 @@
 # Semantic program object model
 
-Canonical, version-controlled `.vibe` source serializes the semantic graph in a
-small number of human-readable shards. A rebuildable, gitignored SQLite database
-at `.vibe/index.sqlite` indexes that graph; it is not authoritative and never one
-file per object. Derived revisions, edges, facts, and cache rows may be rebuilt.
-Cached payloads use schema-versioned canonical CBOR where normalized columns are
+The environment owns the canonical semantic graph in a transactional object
+store. Agents author it only through typed operations. A small number of
+version-controlled packfiles records canonical object revisions; it is never one
+file per object and is not intended for manual editing. A rebuildable, gitignored
+SQLite index at `.vibe/index.sqlite` accelerates queries. Generated `.vibe` text
+is an inspection, interchange, and bootstrap-import representation. Derived
+revisions, edges, facts, and cache rows may be rebuilt.
+Packfiles and cached payloads use schema-versioned canonical CBOR where normalized columns are
 not useful. Source location is never identity. Each object has:
 
 ```text
@@ -52,11 +55,12 @@ publishes a new project root. A failure returns structured diagnostics; partial
 semantic state is never visible.
 
 Large arrays, checkpoints, plots, traces, and scientific results do not become
-database blobs by default. They remain HDF5 or content-addressed artifacts; the
-database stores typed metadata, checksums, provenance, and locations. SQLite WAL
-and compaction are implementation details, and history retention is policy-driven.
+index blobs. They remain HDF5 or content-addressed artifacts; canonical semantic
+objects store their typed metadata, checksums, provenance, and locations. SQLite
+WAL and compaction apply only to the disposable index. Artifact history retention
+is an explicit project policy.
 
 JSON is never the persistent representation. It is appropriate for bounded,
 schema-constrained LLM tool calls and explicit interchange exports. `export-json`
-produces a requested projection on stdout; `graph` and `show` are human-readable
-by default. The bootstrap does not yet implement SQLite/CBOR.
+produces a requested projection on stdout; `graph` and `show` produce semantic
+views for the LLM interface. The bootstrap does not yet implement SQLite/CBOR.

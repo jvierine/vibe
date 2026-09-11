@@ -1,0 +1,6 @@
+fn @app.main() -> i32 {
+    for i in 0i32..1i32 {
+        print(i);
+    }
+    return 0i32;
+}

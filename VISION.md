@@ -3,15 +3,16 @@
 Working name: **Vibe**. Compiler: **`vibec`**.
 
 Vibe tests one proposition: scientific software is best represented as a typed,
-persistent computational model, not a directory of text files. Source is a
-canonical serialization of that model. AI agents manipulate semantic identities;
-humans audit the model's purpose, equations, data flow, assumptions, numerical
-choices, validation, provenance, performance, and outputs.
+persistent computational model, not a directory of text files. Programs are
+created exclusively by LLM agents interacting with the programming environment
+through typed semantic operations. The environment owns the canonical model;
+serialized source is an internal compiler, interchange, and bootstrap form,
+never a human or agent authoring interface. Humans never read it.
 
 ## Product
 
-A Vibe project is a content-addressed semantic database plus a reproducible build
-description. Every significant object has a durable identity such as
+A Vibe project is a typed semantic graph in an environment-owned object store,
+plus a reproducible build description. Every significant object has a durable identity such as
 `@physics.plasma_frequency`, even when its display name or serialized location
 changes. Compiler facts connect functions, equations, datasets, tests, figures,
 results, assumptions, decisions, and external artifacts.
@@ -22,15 +23,21 @@ dependencies form an acyclic graph. Separate compilation and agent context use
 these boundaries, so comprehension and rebuild cost depend on the affected
 neighborhood rather than total repository size.
 
-The default human view begins with a one-page scientific account: purpose;
-inputs and outputs; component/data-flow graph; equations and assumptions;
-precision, units, effects, and unsafe regions; validation; uncertainty; runtime;
-and provenance. Implementation source is available but secondary.
+The human interface is a conversation with an LLM grounded in environment
+queries. It efficiently explains purpose; inputs and outputs; component/data-flow
+graphs; equations and assumptions; precision, units, effects, and unsafe regions;
+validation; uncertainty; runtime; and provenance. Every material claim links to
+typed semantic facts and evidence at a specific program revision. A human can ask
+for scenarios, counterexamples, alternative explanations, semantic diffs, or new
+validation without seeing implementation serialization.
 
-The default agent interface is typed and transactional. An agent asks for one
+The only authoring interface is typed and transactional. An agent asks for one
 object and its neighborhood, applies operations such as `replace_body` or
 `add_parameter`, declares preserved behavior, and commits only if validation
-passes. Text patches remain an escape hatch and import format.
+passes. There is no text-patch authoring or human source-view path. Text can be
+imported into the bootstrap compiler, but the environment immediately normalizes
+it into semantic objects; production Vibe programs are changed only through
+semantic operations.
 
 For large programs, the compiler constructs bounded context capsules containing
 the requested object, component interface, direct dependency summaries, and
@@ -68,8 +75,8 @@ the tests or reviews that compensate.
 
 ## Execution
 
-The production compiler parses canonical serialization into a typed semantic HIR,
-then lowers numerical kernels through MLIR to LLVM. Native CPU is first; WASM is
+The production environment validates semantic transactions into typed HIR, then
+lowers numerical kernels through MLIR to LLVM. Native CPU is first; WASM is
 a coequal pure-computation target. CNNs, transformers, training, and inference use
 ordinary typed tensor graphs whose device placement is portable by default. LLM
 agents—including agents that build other agents—use typed tools, capabilities,

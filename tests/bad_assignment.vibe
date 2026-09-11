@@ -1,0 +1,6 @@
+fn @app.main() -> i32 {
+    let mut left = 1i32;
+    let right = 2i32;
+    left + right = 3i32;
+    return 0i32;
+}

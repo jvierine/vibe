@@ -1,31 +1,47 @@
 # Minimal v0.1 language
 
+Vibe is authored through typed LLM-to-environment operations, not by editing this
+surface syntax. The syntax below is the bootstrap compiler's deterministic
+serialization and import form. It is optimized for compact, unambiguous internal
+processing, not human reading. Generated serialization contains no comments.
+Rationale, equations, assumptions, and provenance are typed semantic objects.
+
 ## Decisions
 
 - UTF-8 input, ASCII keywords, brace blocks, mandatory semicolons.
 - One declaration per semantic object. Functions require durable `@` identities.
 - Every numeric literal carries its representation: `1.0f32`, `1.0f64`, `1i32`.
-- Units follow literals and appear in type brackets: `300.0f64 km`, `f64[m/s]`.
+- Units use the same bracket form on literals and types: `300.0f64[km]`,
+  `f64[m/s]`. Whitespace unit suffixes deliberately do not exist because they make
+  `value m / divisor` ambiguous.
 - Values are immutable unless introduced with `mut`.
+- Lexical shadowing is forbidden; every local name has one meaning within its
+  visible scope, reducing accidental and agent-generated ambiguity.
 - Arrays carry element representation and rank. Shapes are static where named,
   dynamic otherwise. v0.1-bootstrap lowers only rank one.
 - No implicit numeric promotion or unit conversion. Unit scaling is explicit at
   literals, boundaries, and display; internal physical values use coherent SI.
-- Function effects default to `none`; later effect inference may narrow declared
-  upper bounds but never hide an effect.
+- Function effects are inferred. An optional declaration is a checked upper bound;
+  `effects none` is therefore an enforceable purity contract, not a default guess.
 - `strict_fp` is the default. `fast_math` is an explicit function/build property.
 
 Canonical core keywords are `const`, `type`, `fn`, `let`, `mut`, `if`, `for`,
 `while`, `match`, `return`, `extern`, `unsafe`, `test`, and `property`. The
 bootstrap implements only `fn`, `let`, `mut`, `for`, and `return`, plus `print`.
 
+The bootstrap-only `print(...)` statement and unqualified `len(...)` builtin will
+be replaced by stable standard identities such as `@io.println(...)` and
+`@array.len(...)` once strings and package imports exist. They are not permanent
+core syntax. This keeps effects, documentation, dependency tracking, and agent
+queries uniform instead of hiding behavior in compiler magic.
+
 LLM generation is a syntax acceptance criterion. Grammar alternatives, optional
 punctuation, contextual meaning, implicit conversions, and far-away name lookup
 all increase repair probability and are rejected unless measured agent benchmarks
 show a larger benefit. Parser recovery and diagnostics are designed for one-edit
-repair. Stable semantic IDs and typed edit APIs are preferred over asking a model
-to reproduce whole source files; canonical Vibe text remains compact and usable
-when direct generation is appropriate.
+repair. Stable semantic IDs and typed edit APIs replace whole-file generation.
+The serialized text remains compact for internal diagnostics and imports, but
+direct generation is never a production edit or human understanding path.
 
 Large-program boundaries are semantic declarations, not inferred from directories.
 The only hierarchy is workspace, project, package, component, object. Packages and
@@ -52,6 +68,7 @@ statement = "let" "mut"? name (":" type)? "=" expr ";"
           | expr ";" ;
 expr      = literal | name | identity | array | call | index | unary | binary ;
 array     = "[" (expr ("," expr)*)? "]" ;
+literal   = number unit? | string ;
 ```
 
 Precedence is call/index, unary, multiplicative, additive. There is one canonical
@@ -64,8 +81,43 @@ Vibe does not have classes, inheritance, exceptions, null, truthy values,
 overloadable operators, user syntax extensions, textual macros, default numeric
 types, implicit casts, implicit broadcasting, hidden allocation, ambient global
 mutation, runtime reflection, or multiple loop syntaxes. Dynamic dispatch,
-closures, generics, sum types, and async are postponed until a measured use case
-cannot be represented more simply.
+closures, higher-kinded types, implicit trait resolution, and async syntax are
+postponed until a measured use case cannot be represented more simply.
+
+Two formerly postponed features are required for production and become narrow
+v0.2 commitments: explicit parametric types/functions, without traits or implicit
+resolution, and closed tagged unions declared with `type`, enabling exhaustive
+`match` and `Result<T,E>`. Async syntax remains postponed; structured concurrency
+is first explored through typed library operations and effects.
+
+## Structural declarations for v0.2
+
+Large-program containment cannot depend on directories or name prefixes. The
+canonical structural form is:
+
+```vibe
+package @radar.core version "1.0.0" {
+    requires @vibe.linalg version "^1.2";
+}
+
+component @radar.processing in @radar.core {
+    export @radar.calibrate;
+    depends @radar.io;
+}
+
+fn @radar.calibrate in @radar.processing(
+    input: Array<f32,2>[V]
+) -> Array<f32,2>[V]
+effects none {
+    return input;
+}
+```
+
+`package`, `component`, `in`, `export`, `depends`, `requires`, `version`, and
+`effects` describe semantic structure rather than runtime behavior. An object is
+contained by exactly one component. A component may reference another component
+only through its exports and declared dependency. Version constraints resolve to
+exact content hashes in the workspace lock.
 
 ## Ten representative programs
 
@@ -83,7 +135,7 @@ These are design examples; the first two are executable in `examples/`.
    returns value plus method-supplied error diagnostics.
 7. AD: `let gradient = grad(@model.loss, wrt=@param.state);` differentiates typed
    HIR and checks derivative units.
-8. Uncertain measurement: `let range = uncertain(100.0f64 km, sigma=0.2f64 km);`
+8. Uncertain measurement: `let range = uncertain(100.0f64[km], sigma=0.2f64[km]);`
    propagates covariance separately from numerical error.
 9. HDF5: `let ds = hdf5.read(@data.raw, schema=@schema.radar);` is an explicit
    filesystem effect with provenance.
