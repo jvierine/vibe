@@ -13,6 +13,8 @@ pub fn emit_c(checked: &CheckedProgram) -> Result<String, String> {
         .iter()
         .map(|function| (function.id.clone(), function.result.clone()))
         .collect();
+    out.push_str("#include <complex.h>\ntypedef struct { float _Complex *data; size_t len; } vibe_array_complex64;\n");
+    out.push_str("typedef struct { double _Complex *data; size_t len; } vibe_array_complex128;\n");
     for f in &checked.program.functions {
         out.push_str(&signature(f));
         out.push_str(";\n");
@@ -78,6 +80,7 @@ fn emit_block(
                 let element = match annotation {
                     Some(TypeSyntax::Array { element, .. }) => element.clone(),
                     _ => match &values[0] {
+                        Expr::Complex { .. } => Scalar::Complex64,
                         Expr::Number { scalar, .. } => scalar.clone(),
                         _ => return Err("array literal element type must be explicit".into()),
                     },
@@ -191,6 +194,11 @@ fn emit_block(
 
 fn emit_expr(expr: &Expr) -> Result<String, String> {
     Ok(match expr {
+        Expr::Complex { real, imag } => format!(
+            "__builtin_complex({}, {})",
+            emit_number(real, &Scalar::F32, 1.0)?,
+            emit_number(imag, &Scalar::F32, 1.0)?
+        ),
         Expr::String(_) => return Err("string values are only valid directly inside print".into()),
         Expr::Number { text, scalar, unit } => {
             let scale = units::parse(unit.as_deref())?.scale;
@@ -225,6 +233,7 @@ fn infer_syntax(
     function_results: &HashMap<String, TypeSyntax>,
 ) -> TypeSyntax {
     match expr {
+        Expr::Complex { .. } => TypeSyntax::Scalar(Scalar::Complex64, None),
         Expr::String(_) => TypeSyntax::None,
         Expr::Number { scalar, unit, .. } => TypeSyntax::Scalar(scalar.clone(), unit.clone()),
         Expr::Var(v) => env.get(v).cloned().unwrap_or(TypeSyntax::None),
@@ -261,6 +270,8 @@ fn c_type(ty: &TypeSyntax) -> String {
 }
 fn scalar_c(s: &Scalar) -> &'static str {
     match s {
+        Scalar::Complex64 => "float _Complex",
+        Scalar::Complex128 => "double _Complex",
         Scalar::Bool => "bool",
         Scalar::I32 => "int32_t",
         Scalar::I64 => "int64_t",
@@ -320,7 +331,10 @@ fn emit_number(text: &str, scalar: &Scalar, scale: f64) -> Result<String, String
             }
             Ok(format!("({})", value as i64))
         }
-        Scalar::Bool => Err("boolean numeric literal is invalid".into()),
+        Scalar::Bool | Scalar::Complex64 | Scalar::Complex128 => Err(
+            "use a typed complex literal for complex64; boolean numeric literals are invalid"
+                .into(),
+        ),
     }
 }
 

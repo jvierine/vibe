@@ -311,6 +311,8 @@ fn check_block(
                 }
             }
             Stmt::Print { value, unit } => match expr_type(value, env, functions, calls) {
+                Ok(CheckedType::Scalar(Scalar::Complex64 | Scalar::Complex128, _)) => errors
+                    .push("complex printing requires explicit real/imaginary projection".into()),
                 Ok(CheckedType::Scalar(_, actual)) => {
                     if let Some(name) = unit {
                         match units::parse(Some(name)) {
@@ -344,6 +346,14 @@ fn expr_type(
     calls: &mut Vec<String>,
 ) -> Result<CheckedType, String> {
     match expr {
+        Expr::Complex { real, imag } => {
+            validate_scaled_literal(real, &Scalar::F32, 1.0)?;
+            validate_scaled_literal(imag, &Scalar::F32, 1.0)?;
+            Ok(CheckedType::Scalar(
+                Scalar::Complex64,
+                Unit::dimensionless(),
+            ))
+        }
         Expr::String(_) => Err("strings are only supported directly inside print in v0.1".into()),
         Expr::Number { text, scalar, unit } => {
             let unit = units::parse(unit.as_deref())?;
@@ -482,7 +492,7 @@ fn validate_scaled_literal(text: &str, scalar: &Scalar, scale: f64) -> Result<()
                 scaled.fract() == 0.0 && scaled >= i64::MIN as f64 && scaled <= i64::MAX as f64
             }
         }),
-        Scalar::Bool => false,
+        Scalar::Bool | Scalar::Complex64 | Scalar::Complex128 => false,
     };
     if valid {
         Ok(())

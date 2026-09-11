@@ -1,9 +1,21 @@
 # Numerical model
 
 Representations are explicit: signed/unsigned integers, `f16/f32/f64`, and
-`c32/c64/c128` (total complex storage bits). v0.1-bootstrap implements
-`i32/i64/f32/f64/bool`. Mixed-representation arithmetic is an error unless an
+`complex64/complex128` (total complex storage bits). v0.1-bootstrap implements
+`i32/i64/f32/f64/bool/complex64/complex128`. Complex64 holds two f32 components;
+complex128 holds two f64 components. Mixed-representation arithmetic is an error unless an
 operation names its input, accumulation, and output representations.
+
+The first empirical precision experiment is implemented as
+`vibec env emit-c PROGRAM --precision f64`: clone the semantic algorithm, widen
+f32 to f64 and complex64 to complex128, recheck, and lower without changing the
+stored program revision. Complex literal promotion is currently rejected explicitly;
+complex inputs and coefficients can be supplied through array parameters.
+The FFT example compares both executions on identical inputs, with wider twiddle
+coefficients for the promoted run. The difference estimates arithmetic and
+coefficient-rounding sensitivity for those inputs; it is not a rigorous bound,
+does not certify all inputs, and does not quantify model uncertainty.
+See `examples/FFT.md` for validation, benchmark scope, and reproduction.
 
 `strict_fp` preserves the specified evaluation order and IEEE-observable behavior
 within a documented target profile. `fast_math` separately enables reassociation,

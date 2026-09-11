@@ -472,7 +472,7 @@ fn split_number(text: &str) -> Result<(String, Scalar), &'static str> {
                 Scalar::F64 => raw.parse::<f64>().is_ok_and(f64::is_finite),
                 Scalar::I32 => raw.parse::<i32>().is_ok(),
                 Scalar::I64 => raw.parse::<i64>().is_ok(),
-                Scalar::Bool => false,
+                Scalar::Bool | Scalar::Complex64 | Scalar::Complex128 => false,
             };
             return if valid {
                 Ok((raw, ty))

@@ -151,6 +151,10 @@ enum ApiStatement {
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 enum ApiExpression {
+    Complex {
+        real: String,
+        imag: String,
+    },
     String {
         value: String,
     },
@@ -952,6 +956,7 @@ impl ApiStatement {
 impl ApiExpression {
     fn into_expression(self) -> Result<Expr, String> {
         Ok(match self {
+            Self::Complex { real, imag } => Expr::Complex { real, imag },
             Self::String { value } => Expr::String(value),
             Self::Number {
                 value,

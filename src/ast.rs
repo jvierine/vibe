@@ -8,6 +8,8 @@ pub enum Scalar {
     I64,
     F32,
     F64,
+    Complex64,
+    Complex128,
 }
 
 impl Scalar {
@@ -18,6 +20,8 @@ impl Scalar {
             "i64" => Self::I64,
             "f32" => Self::F32,
             "f64" => Self::F64,
+            "complex64" => Self::Complex64,
+            "complex128" => Self::Complex128,
             _ => return None,
         })
     }
@@ -28,6 +32,8 @@ impl Scalar {
             Self::I64 => "i64",
             Self::F32 => "f32",
             Self::F64 => "f64",
+            Self::Complex64 => "complex64",
+            Self::Complex128 => "complex128",
         }
     }
 }
@@ -92,6 +98,10 @@ pub enum Stmt {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Expr {
+    Complex {
+        real: String,
+        imag: String,
+    },
     String(String),
     Number {
         text: String,

@@ -45,6 +45,11 @@ WASM. See [COMPILER.md](COMPILER.md) and [ROADMAP.md](ROADMAP.md).
 
 Status and limits:
 
+- [FFT example](examples/FFT.md): 1024-point complex64 radix-2 FFT authored through
+  semantic transactions, 1024-transform CPU benchmark against NumPy, and empirical
+  numerical-error estimates using Vibe's promoted complex128 clone. Reproduce with
+  `conda run -n base python scripts/benchmark_fft.py` after `cargo build`.
+
 - Units use SI dimensions and compile away; `m`, `km`, `s`, `Hz`, `kHz`, `MHz`,
   `kg`, `g`, `A`, `K`, `mol`, `cd`, `J`, `kJ`, `N`, `Pa`, and `rad` exist.
 - Arrays are rank-known but only rank-one literals/indexing are lowered today.

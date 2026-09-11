@@ -4,6 +4,7 @@ mod codegen;
 mod environment;
 mod lexer;
 mod parser;
+mod precision;
 mod units;
 
 use std::env;
@@ -107,6 +108,17 @@ fn run_environment(args: &[String]) -> Result<(), String> {
         .ok_or_else(|| format!("env {command} requires a project directory"))?;
     let project = Path::new(project);
     match command.as_str() {
+        "emit-c" => {
+            let (mut checked, _) = environment::load_at(project, option_arg(args, "--at"))?;
+            if let Some(mode) = option_arg(args, "--precision") {
+                if mode != "f64" {
+                    return Err("precision experiment supports --precision f64 only".into());
+                }
+                checked =
+                    check::check(precision::promote(checked.program)?).map_err(|e| e.join("\n"))?;
+            }
+            print!("{}", codegen::emit_c(&checked)?);
+        }
         "apply" => {
             let request = environment::read_request()?;
             println!("{}", environment::apply(project, &request)?);
@@ -261,6 +273,7 @@ fn default_output(source: &str) -> PathBuf {
 }
 
 fn help() {
+    println!("Precision experiments: vibec env emit-c PROJECT [--at REVISION] [--precision f64]");
     println!(
         "vibec 0.1.0-bootstrap\n\nEnvironment-owned programs:\n  vibec env apply PROJECT                         # typed transaction on stdin\n  vibec env inspect PROJECT @id [REV_OR_BRANCH]  # bounded semantic query\n  vibec env check PROJECT [REV_OR_BRANCH]\n  vibec env graph PROJECT [REV_OR_BRANCH]\n  vibec env branches PROJECT\n  vibec env history PROJECT [REV_OR_BRANCH]\n  vibec env branch PROJECT NAME [FROM]\n  vibec env diff PROJECT FROM TO\n  vibec env merge PROJECT TARGET SOURCE [NAME]\n  vibec env upgrade PROJECT\n  vibec env git-configure PROJECT\n  vibec env build PROJECT [--at REV_OR_BRANCH] [-o OUTPUT]\n  vibec env run PROJECT [--at REV_OR_BRANCH] [-o OUTPUT]\n\nBootstrap imports:\n  vibec check FILE\n  vibec build FILE [-o OUTPUT]\n  vibec run FILE [-o OUTPUT]\n  vibec graph FILE              # semantic architecture projection\n  vibec show FILE [@id]         # bounded semantic projection\n  vibec inspect-json FILE @id   # bounded LLM/tool projection\n  vibec callers FILE @id\n  vibec callees FILE @id\n  vibec impact FILE @id         # transitive affected callers\n  vibec export-json FILE        # explicit whole-program export\n  vibec emit-c FILE             # internal bootstrap backend output\n"
     );
