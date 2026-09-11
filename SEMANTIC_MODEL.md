@@ -65,4 +65,6 @@ is an explicit project policy.
 JSON is never the persistent representation. It is appropriate for bounded,
 schema-constrained LLM tool calls and explicit interchange exports. `export-json`
 produces a requested projection on stdout; `graph` and `show` produce semantic
-views for the LLM interface. The bootstrap does not yet implement SQLite/CBOR.
+views for the LLM interface. The bootstrap implements CBOR packs, but not the
+SQLite index. See [DESIGN.md](DESIGN.md) for the updated storage, identity, and
+query architecture; scalable segmented storage remains planned.

@@ -8,6 +8,11 @@ by conversing with an environment-grounded LLM. Humans never read code, and
 agents never patch source text.
 
 This repository contains the design and a deliberately small bootstrap compiler.
+The consolidated [scientific agent-first design](DESIGN.md) specifies the core,
+compiler queries, numerical evidence, semantic editing, and implementation order.
+It takes precedence over older design directions and explicitly separates planned
+facilities from executable bootstrap behavior.
+
 The prototype supports atomic semantic transactions into a compact CBOR store,
 object-level optimistic concurrency, bounded object queries, explicit `f32`/`f64`
 values, units, functions, rank-one arrays, indexed loops, static type/unit
@@ -44,6 +49,11 @@ is typed Vibe HIR; the planned production path is HIR → MLIR → LLVM/native o
 WASM. See [COMPILER.md](COMPILER.md) and [ROADMAP.md](ROADMAP.md).
 
 Status and limits:
+
+- [Agent query API](AGENT_API.md#implemented-query-protocol-v1): snapshot-bound,
+  paginated compiler facts and flat expression projections, typed expression
+  replacement, and full-result query read guards for concurrent agents. Unknown
+  analyses are explicit; persistent indexes and incremental checking remain planned.
 
 - [FFT example](examples/FFT.md): 1024-point complex64 radix-2 FFT authored through
   semantic transactions, 1024-transform CPU benchmark against NumPy, and empirical
@@ -83,7 +93,13 @@ Large programs are an architectural requirement, with explicit packages,
 components, semantic interfaces, separate compilation, bounded agent context, and
 scale gates. See [LARGE_PROGRAMS.md](LARGE_PROGRAMS.md).
 
-Incremental compilation uses separate interface/body/codegen fingerprints and
+[Concurrent multi-agent development](DESIGN.md#27-massively-parallel-ai-software-engineering)
+is a first-class requirement: semantic task scopes, contract-first parallel work,
+minimal context, dependency-aware scheduling, and validated atomic integration.
+Current revision/query guards are the foundation; reservations, scheduling, and
+100-agent throughput remain design targets, not implemented capabilities.
+
+The planned incremental compiler uses separate interface/body/codegen fingerprints and
 typed dependency edges so unchanged interfaces stop invalidation. The design and
 acceptance gates are in
 [INCREMENTAL_COMPILATION.md](INCREMENTAL_COMPILATION.md).

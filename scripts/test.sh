@@ -15,11 +15,25 @@ cargo test --manifest-path "$root/Cargo.toml"
 "$compiler" run "$root/examples/dot_product.vibe" -o "$tmp_dir/dot" | grep -qx '32'
 "$compiler" run "$root/examples/hello_world.vibe" -o "$tmp_dir/hello" | grep -qx 'Hello, world!'
 "$compiler" env check "$root/examples/hello_world.vibepack" | jq -e '.status == "checked"' >/dev/null
+"$compiler" env capabilities "$root/examples/hello_world.vibepack" | jq -e '.query_schema == "vibe.query.v1"' >/dev/null
+printf '%s\n' '{"schema":"vibe.query.v1","snapshot":"main","op":"nodes","id":"@greeting.say"}' |
+    "$compiler" env query "$root/examples/hello_world.vibepack" | grep -q 'string value="Hello, world!"'
+printf '%s\n' '{"schema":"vibe.query.v1","snapshot":"main","op":"uncertainty","id":"@app.main"}' |
+    "$compiler" env query "$root/examples/hello_world.vibepack" | grep -q 'status=unknown'
 "$compiler" env inspect "$root/examples/hello_world.vibepack" @app.main | jq -e '.result.effects == ["io.stdout"]' >/dev/null
 "$compiler" env branches "$root/examples/hello_world.vibepack" | jq -e '.branches[0].name == "main"' >/dev/null
 "$compiler" env history "$root/examples/hello_world.vibepack" | jq -e '.commits | length >= 1' >/dev/null
 "$compiler" env git-textconv "$root/examples/hello_world.vibepack" | grep -q '@app.main'
 "$compiler" env run "$root/examples/hello_world.vibepack" -o "$tmp_dir/env-hello" | grep -qx 'Hello, world!'
+cp "$root/examples/hello_world.vibepack" "$tmp_dir/edited.vibepack"
+edit_state=$("$compiler" env inspect "$tmp_dir/edited.vibepack" @greeting.say)
+jq -nc --argjson state "$edit_state" '{
+    schema:"vibe.transaction.v0",name:"edit greeting",branch:"main",
+    base_revision:$state.revision,reads:[],operations:[{
+        op:"replace_expression",id:"@greeting.say",expected_revision:$state.object_revision,
+        node:"body/0/value",value:{kind:"string",value:"Hello from a semantic edit!"}
+    }]}' | "$compiler" env apply "$tmp_dir/edited.vibepack" | jq -e '.status == "committed"' >/dev/null
+"$compiler" env run "$tmp_dir/edited.vibepack" -o "$tmp_dir/edited-hello" | grep -qx 'Hello from a semantic edit!'
 "$compiler" show "$root/examples/kinetic_energy.vibe" @physics.kinetic_energy | grep -q 'interface:'
 "$compiler" callers "$root/examples/kinetic_energy.vibe" @physics.kinetic_energy | grep -qx '@app.main'
 "$compiler" callees "$root/examples/kinetic_energy.vibe" @app.main | grep -qx '@physics.kinetic_energy'

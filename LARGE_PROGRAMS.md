@@ -9,6 +9,13 @@ Large-program comprehension is a primary language constraint. Vibe may not rely
 on an LLM reading an entire repository, humans remembering informal boundaries,
 or whole-program compilation for ordinary edits.
 
+Concurrent multi-agent development is equally fundamental. The concrete task,
+reservation, contract-first scheduling, context-server, semantic integration,
+and 100-worker acceptance model is specified in
+[DESIGN.md section 27](DESIGN.md#27-massively-parallel-ai-software-engineering).
+Its work DAG is distinct from the program call graph: stable interfaces enable
+parallel implementation even when finished components depend on each other.
+
 ## Hierarchy and boundaries
 
 The semantic hierarchy is fixed and intentionally shallow:

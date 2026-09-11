@@ -16,6 +16,9 @@ const MAX_TRANSACTION_BYTES: usize = 1024 * 1024;
 const MAX_OPERATIONS: usize = 1024;
 const MAX_BOOTSTRAP_STORE_BYTES: usize = 64 * 1024 * 1024;
 
+mod query;
+pub use query::{capabilities, query};
+
 #[derive(Serialize, Deserialize)]
 struct Store {
     schema: u32,
@@ -54,6 +57,8 @@ struct Transaction {
     base_revision: Option<String>,
     branch: String,
     reads: Vec<Precondition>,
+    #[serde(default)]
+    query_reads: Vec<query::QueryRead>,
     operations: Vec<Operation>,
 }
 
@@ -67,6 +72,12 @@ struct Precondition {
 #[derive(Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 enum Operation {
+    ReplaceExpression {
+        id: String,
+        expected_revision: String,
+        node: String,
+        value: ApiExpression,
+    },
     PutFunction {
         expected_revision: Option<String>,
         object: ApiFunction,
@@ -285,6 +296,10 @@ pub fn apply(project: &Path, request: &str) -> Result<String, String> {
         None => Program { functions: vec![] },
     };
     validate_read_set(&program, &transaction.reads)?;
+    if !transaction.query_reads.is_empty() {
+        let checked = check::check(program.clone()).map_err(|errors| errors.join("\n"))?;
+        query::validate_reads(&checked, &transaction.query_reads)?;
+    }
     let declared_reads = transaction
         .reads
         .iter()
@@ -293,6 +308,21 @@ pub fn apply(project: &Path, request: &str) -> Result<String, String> {
     let mut changed = Vec::new();
     for operation in transaction.operations {
         match operation {
+            Operation::ReplaceExpression {
+                id,
+                expected_revision,
+                node,
+                value,
+            } => {
+                validate_expected_revision(&program, &id, Some(&expected_revision))?;
+                let function = program
+                    .functions
+                    .iter_mut()
+                    .find(|f| f.id == id)
+                    .ok_or_else(|| format!("unknown semantic object '{id}'"))?;
+                query::replace_expression(function, &node, value.into_expression()?)?;
+                changed.push(id);
+            }
             Operation::PutFunction {
                 expected_revision,
                 object,
@@ -1619,6 +1649,190 @@ mod tests {
             .as_str()
             .unwrap()
             .to_string()
+    }
+
+    fn query_request(op: &str, id: Option<&str>, snapshot: &str) -> Value {
+        let mut request = json!({"schema":"vibe.query.v1", "snapshot":snapshot, "op":op});
+        if let Some(id) = id {
+            request["id"] = json!(id);
+        }
+        request
+    }
+
+    fn query_field<'a>(result: &'a str, field: &str) -> &'a str {
+        result
+            .lines()
+            .next()
+            .unwrap()
+            .split_whitespace()
+            .find_map(|word| word.strip_prefix(&format!("{field}=")))
+            .unwrap()
+    }
+
+    #[test]
+    fn queries_are_deterministic_paginated_and_snapshot_bound() {
+        let project = temporary_project("query-pages");
+        let _ = fs::remove_dir_all(&project);
+        let base = result_revision(
+            &apply(&project, &put_transaction("init", Value::Null, "@app.main")).unwrap(),
+        );
+        let head = result_revision(
+            &apply(&project, &put_transaction("helper", json!(base), "@helper")).unwrap(),
+        );
+        let mut request = query_request("structure", None, "main");
+        request["limit"] = json!(1);
+        let first = query(&project, &request.to_string()).unwrap();
+        assert_eq!(first, query(&project, &request.to_string()).unwrap());
+        assert_eq!(query_field(&first, "complete"), "false");
+        assert!(first.contains("@app.main function"));
+        let cursor = query_field(&first, "cursor");
+        apply(&project, &put_transaction("later", json!(head), "@later")).unwrap();
+        request["cursor"] = json!(cursor);
+        assert!(
+            query(&project, &request.to_string())
+                .unwrap_err()
+                .contains("snapshot/query")
+        );
+        request["snapshot"] = json!(query_field(&first, "snapshot"));
+        let second = query(&project, &request.to_string()).unwrap();
+        assert!(second.contains("@helper function"));
+        assert!(!second.contains("@later function"));
+        assert_eq!(query_field(&second, "complete"), "true");
+        assert_eq!(
+            query_field(&first, "fingerprint"),
+            query_field(&second, "fingerprint")
+        );
+        request["limit"] = json!(0);
+        assert!(query(&project, &request.to_string()).is_err());
+        let _ = fs::remove_dir_all(project);
+    }
+
+    #[test]
+    fn expression_edits_are_precise_checked_and_conflict_safe() {
+        let project = temporary_project("node-edits");
+        let _ = fs::remove_dir_all(&project);
+        let base = result_revision(
+            &apply(&project, &put_transaction("init", Value::Null, "@app.main")).unwrap(),
+        );
+        let nodes = query(
+            &project,
+            &query_request("nodes", Some("@app.main"), &base).to_string(),
+        )
+        .unwrap();
+        assert!(nodes.contains("body/0/value number value=\"0\" scalar=i32"));
+        let inspected: Value =
+            serde_json::from_str(&inspect(&project, "@app.main", None).unwrap()).unwrap();
+        let mut edit = json!({"schema":TRANSACTION_SCHEMA,"name":"edit","branch":"main",
+            "base_revision":base,"reads":[],"operations":[{"op":"replace_expression",
+            "id":"@app.main","expected_revision":inspected["object_revision"],
+            "node":"body/0/value","value":{"kind":"number","value":"7","scalar":"i32"}}]});
+        edit["operations"][0]["value"]["scalar"] = json!("f64");
+        let bytes = fs::read(Paths::new(&project).store).unwrap();
+        assert!(
+            apply(&project, &edit.to_string())
+                .unwrap_err()
+                .contains("failed validation")
+        );
+        assert_eq!(bytes, fs::read(Paths::new(&project).store).unwrap());
+        edit["operations"][0]["value"]["scalar"] = json!("i32");
+        edit["operations"][0]["node"] = json!("body/100/value");
+        assert!(
+            apply(&project, &edit.to_string())
+                .unwrap_err()
+                .contains("unknown expression node")
+        );
+        edit["operations"][0]["node"] = json!("body/0/value");
+        apply(&project, &edit.to_string()).unwrap();
+        assert!(
+            query(
+                &project,
+                &query_request("nodes", Some("@app.main"), "main").to_string()
+            )
+            .unwrap()
+            .contains("value=\"7\"")
+        );
+        assert!(
+            apply(&project, &edit.to_string())
+                .unwrap_err()
+                .contains("object revision conflict")
+        );
+        assert!(
+            query(
+                &project,
+                &query_request("nodes", Some("@app.main"), &base).to_string()
+            )
+            .unwrap()
+            .contains("value=\"0\"")
+        );
+        let _ = fs::remove_dir_all(project);
+    }
+
+    #[test]
+    fn query_read_sets_detect_new_callers_but_allow_unrelated_writes() {
+        let project = temporary_project("query-reads");
+        let _ = fs::remove_dir_all(&project);
+        let base = result_revision(
+            &apply(&project, &put_transaction("init", Value::Null, "@helper")).unwrap(),
+        );
+        let request = query_request("callers", Some("@helper"), &base);
+        let result = query(&project, &request.to_string()).unwrap();
+        let mut candidate: Value =
+            serde_json::from_str(&put_transaction("candidate", json!(base), "@candidate")).unwrap();
+        candidate["query_reads"] =
+            json!([{"query":request,"fingerprint":query_field(&result,"fingerprint")}]);
+        // Unrelated history is not a query conflict.
+        apply(
+            &project,
+            &put_transaction("unrelated", json!(base), "@unrelated"),
+        )
+        .unwrap();
+        apply(&project, &candidate.to_string()).unwrap();
+        let helper: Value =
+            serde_json::from_str(&inspect(&project, "@helper", None).unwrap()).unwrap();
+        let mut caller: Value =
+            serde_json::from_str(&put_transaction("caller", json!(base), "@caller")).unwrap();
+        caller["reads"] = json!([{"id":"@helper","revision":helper["object_revision"]}]);
+        caller["operations"][0]["object"]["body"] = json!([
+            {"kind":"expression","value":{"kind":"call","function":"@helper"}},
+            {"kind":"return"}]);
+        apply(&project, &caller.to_string()).unwrap();
+        candidate["operations"][0]["object"]["id"] = json!("@candidate2");
+        let before = fs::read(Paths::new(&project).store).unwrap();
+        assert!(
+            apply(&project, &candidate.to_string())
+                .unwrap_err()
+                .contains("query read conflict")
+        );
+        assert_eq!(before, fs::read(Paths::new(&project).store).unwrap());
+        let _ = fs::remove_dir_all(project);
+    }
+
+    #[test]
+    fn queries_never_invent_purity_or_numerical_evidence() {
+        let project = temporary_project("query-unknown");
+        let _ = fs::remove_dir_all(&project);
+        apply(&project, &put_transaction("init", Value::Null, "@helper")).unwrap();
+        for (op, status) in [
+            ("pure", "unknown"),
+            ("uncertainty", "unknown"),
+            ("effects", "partial"),
+            ("cost", "unsupported"),
+        ] {
+            let result = query(
+                &project,
+                &query_request(op, Some("@helper"), "main").to_string(),
+            )
+            .unwrap();
+            assert_eq!(query_field(&result, "status"), status);
+        }
+        assert!(
+            query(
+                &project,
+                &query_request("deps", Some("@missing"), "main").to_string()
+            )
+            .is_err()
+        );
+        let _ = fs::remove_dir_all(project);
     }
 
     #[test]

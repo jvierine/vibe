@@ -3,7 +3,9 @@
 Vibe is authored through typed LLM-to-environment operations, not by editing this
 surface syntax. The syntax below is the bootstrap compiler's deterministic
 serialization and import form. It is optimized for compact, unambiguous internal
-processing, not human reading. Generated serialization contains no comments.
+processing. The updated [design](DESIGN.md) also permits compact mathematical
+projections and parsed expression fragments inside typed transactions; text is
+never an independently maintained source of truth. Generated serialization contains no comments.
 Rationale, equations, assumptions, and provenance are typed semantic objects.
 
 ## Decisions
@@ -41,7 +43,8 @@ all increase repair probability and are rejected unless measured agent benchmark
 show a larger benefit. Parser recovery and diagnostics are designed for one-edit
 repair. Stable semantic IDs and typed edit APIs replace whole-file generation.
 The serialized text remains compact for internal diagnostics and imports, but
-direct generation is never a production edit or human understanding path.
+arbitrary text-file patching is never the production editing path. A projection
+may be requested by a human, but human understanding must not depend on reading it.
 
 Large-program boundaries are semantic declarations, not inferred from directories.
 The only hierarchy is workspace, project, package, component, object. Packages and

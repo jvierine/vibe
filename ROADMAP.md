@@ -10,6 +10,24 @@ checking, rank-one arrays and loops, C17 emission, and native execution. Gate:
 environment-authored Hello World runs, conflicting writes reject, examples run,
 invalid units fail, and compiler unit/integration tests pass.
 
+The first [DESIGN.md](DESIGN.md) implementation increment adds query protocol v1,
+snapshot-bound pagination, flat semantic body projections, expression replacement,
+and full-result query read guards (including newly added callers). Unsupported
+analyses are explicitly reported. See [AGENT_API.md](AGENT_API.md). Persistent
+indexes, durable node identities, ownership/bounds checks, and incremental checking
+remain the next gates, not completed facilities.
+
+## First-class concurrent development requirement
+
+[DESIGN.md section 27](DESIGN.md#27-massively-parallel-ai-software-engineering)
+defines the production concurrency model. It is not a branch-per-agent workflow.
+Prioritize durable identities and separate interface/implementation/test records,
+incremental fact/validation indexes, and candidate validation outside publication
+locks. Build task scopes, leases, context capsules, event delivery, and work-DAG
+scheduling on those foundations. Add speculative kernel selection only after
+evidence validity and resource isolation are enforced. Gate throughput claims on
+1/10/32/100-worker tests, including hot interfaces and crash recovery.
+
 ## Ordered milestones
 
 1. Expand the transactional object API, now implemented for atomic function

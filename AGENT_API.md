@@ -33,6 +33,8 @@ The environment API implemented now is:
 
 ```text
 vibec env apply PROJECT        # one typed transaction from stdin
+vibec env capabilities PROJECT # versioned capabilities and limits
+vibec env query PROJECT        # vibe.query.v1 request from stdin; compact text result
 vibec env inspect PROJECT @id  # bounded object plus root/object revisions
 vibec env check PROJECT
 vibec env graph PROJECT
@@ -47,12 +49,87 @@ vibec env run PROJECT
 ```
 
 `PROJECT` may be one portable `.vibepack` file or an environment directory. The
-current mutation set is `put_function` and `delete_object`. Each operation has an
+current mutation set is `put_function`, `delete_object`, and `replace_expression`. Each operation has an
 expected object revision, and the transaction declares revisions for all objects
 it read. Disjoint writes based on the same old project root may merge; overlapping
 or stale reads reject. Direct function dependencies must appear in the read set
-unless changed in the same transaction. The environment locks only the short
-compare, validate, and atomic commit section.
+unless changed in the same transaction. The bootstrap currently holds its lock
+through whole-pack loading, validation, and commit; moving expensive validation
+outside the publication lock remains planned.
+
+## Implemented query protocol v1
+
+Pass one request to `vibec env query PROJECT` on stdin:
+
+```json
+{"schema":"vibe.query.v1","snapshot":"main","op":"nodes","id":"@greeting.say","limit":32}
+```
+
+Requests reject unknown fields. `snapshot` is a branch or immutable revision.
+`structure` lists all functions and omits `id`; other queries select a function.
+`definition`, `type`, `units`, `shape`, and `precision` expose checked interfaces.
+Shape reports known rank and unknown extents, not inferred static sizes. Precision
+reports representations, not a numerical guarantee or inferred accumulator policy.
+`nodes` returns a flat body projection: statement bindings/control structure and
+expression kinds, values, and child paths. Large string contents are omitted with
+their hash. No full AST is emitted by default.
+
+`calls`/`deps` and `callers`/`users` traverse forward/reverse call indexes, with
+optional `depth` (1–1024) or `transitive:true`. Default depth is one. At this stage
+dependency queries cover function call references, not future type, data, contract,
+or optimization edges. Results are sorted and cycles terminate.
+
+The first output line contains `schema`, resolved `snapshot`, `status`, `complete`,
+page `records`, full-result `total`, `cursor`, and a full-result `fingerprint`.
+Function queries also return `object_revision`. Limits are 256 records and 64 KiB
+per response. A cursor is bound to the resolved snapshot and all request options;
+continue with that snapshot, not a moving branch name. `complete` describes
+pagination only: `status=unknown` is not a proof even when `complete=true`.
+
+`effects` returns `partial` and identifies its stdout-only scope. `pure`, `layout`,
+`alias`, `range`, and `uncertainty` report `unknown`. Unsupported evidence/profile/
+optimization queries return `unsupported`, not invented data or an empty success.
+Unknown operations/identities are errors. `capabilities` reports the available
+operations and these limitations. Requests still load/check the complete pack;
+bounded output does not yet mean incremental analysis or persistent indexing.
+
+### Expression edits and query read preconditions
+
+`nodes` paths are scoped to the returned object revision; they are **not** durable
+node identities. Submit a typed replacement with the exact object revision:
+
+```json
+{
+  "schema":"vibe.transaction.v0",
+  "name":"update greeting",
+  "branch":"main",
+  "base_revision":"<snapshot from query>",
+  "reads":[],
+  "operations":[{
+    "op":"replace_expression",
+    "id":"@greeting.say",
+    "expected_revision":"<object_revision from query>",
+    "node":"body/0/value",
+    "value":{"kind":"string","value":"Hello from a semantic edit!"}
+  }]
+}
+```
+
+This example targets the checked-in Hello World pack's print expression. Query
+first: do not assume the same path denotes the same expression after another edit.
+Replacement values use the same closed, kind-tagged expression schema as
+`put_function`. Invalid paths, stale revisions, invalid types/units, and undeclared
+call dependencies reject atomically. Old snapshots remain queryable/buildable.
+
+A transaction can also include `query_reads`, an array of
+`{"query": <original query without cursor>, "fingerprint": "<returned fingerprint>"}`.
+The environment reruns the query against the current branch under the commit lock
+and compares the complete result, not just the returned page. The request snapshot
+records where the fact was observed; it does not make the commit recheck old data.
+Thus a newly added caller invalidates a callers-query read, while unrelated history
+does not. These guards supplement, not replace, mandatory direct object reads.
+Unknown/unsupported results can detect status changes, but cannot establish a
+scientific property. No extra persisted JSON files are created.
 
 The store retains immutable object revisions and a commit DAG with named heads.
 Historical revisions can be queried, checked, built, and compared. Object-level
