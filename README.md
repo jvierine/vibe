@@ -1,3 +1,7 @@
+> "ASCII computer code is a terrible compromise between a human and compiler readable representations of a computer program"
+>
+> — author
+
 # Vibe / `vibec`
 
 Vibe is an experimental, compiled scientific language whose source of truth is a
