@@ -7,6 +7,15 @@ implements these facilities. Examples below are proposed projections/protocols
 unless explicitly identified as executable today.
 
 Store semantics once; provide representations optimized for the consumer.
+Every program must always have an easy-to-understand human-readable representation
+of its actual code, logic and structure. This is a required maintained view, not
+an optional debug export or an independently authored explanation. Start with a
+small overview of three to five meaningful groups and progressively reveal
+interfaces, dependencies and implementation. Hide internal hashes and storage
+bookkeeping. Check freshness whenever the program changes; do not present stale
+views as current. Generation and freshness alone do not establish readability:
+human review must assess whether the logic can actually be understood.
+
 Do not make an agent infer facts the compiler can determine. Make known facts
 cheap to retrieve, but never confuse a cheap lookup with a cheap analysis.
 

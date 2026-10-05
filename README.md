@@ -4,6 +4,8 @@
 
 # Vibe / `vibec`
 
+[Browse human-readable programs](examples/PACKS.md) — generated views of the stored `.vibepack` functions.
+
 Vibe is an experimental, compiled scientific language whose source of truth is a
 typed semantic program graph. Programs are authored only through typed
 interaction between an LLM and the programming environment. Humans inspect

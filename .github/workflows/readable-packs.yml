@@ -1,0 +1,19 @@
+name: Human-readable program views
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          activate-environment: base
+          auto-activate-base: true
+      - run: cargo build --locked
+      - run: conda run -n base python scripts/test_render_packs.py
+      - run: conda run -n base python scripts/render_packs.py --check
